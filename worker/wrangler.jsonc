@@ -1,0 +1,34 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "web-issuer",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "routes": [{ "pattern": "issuer.pnetto.store", "custom_domain": true }],
+  "vars": {
+    // Filled in after the GitHub App is created (docs/github-app-setup.md).
+    "GITHUB_CLIENT_ID": "",
+    "GITHUB_APP_ID": "",
+    "ALLOWED_LOGIN": "pnettto",
+    // From `npm run extension-id` (README).
+    "EXTENSION_ID": "",
+    "TRACKED_REPOS": "pnettto/hawk",
+    "PUBLIC_URL": "https://issuer.pnetto.store"
+  },
+  // Secrets (wrangler secret put / .dev.vars): GITHUB_CLIENT_SECRET,
+  // GITHUB_WEBHOOK_SECRET, TOKEN_ENC_KEY.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "web-issuer",
+      // Replace with the id printed by `wrangler d1 create web-issuer`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "REQUEST_LIVE", "class_name": "RequestLive" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RequestLive"] }]
+}
