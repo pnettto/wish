@@ -8,8 +8,8 @@
   "routes": [{ "pattern": "issuer.pnetto.store", "custom_domain": true }],
   "vars": {
     // Filled in after the GitHub App is created (docs/github-app-setup.md).
-    "GITHUB_CLIENT_ID": "",
-    "GITHUB_APP_ID": "",
+    "GITHUB_CLIENT_ID": "Iv23lix1yEP0yfaykDNp",
+    "GITHUB_APP_ID": "5885708",
     "ALLOWED_LOGIN": "pnettto",
     // From `npm run extension-id` (README).
     "EXTENSION_ID": "ndghjkhgmanjhlfhahcbbmpfofdmldbc",
