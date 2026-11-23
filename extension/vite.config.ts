@@ -2,12 +2,12 @@ import preact from "@preact/preset-vite";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
-// Side panel (HTML + Preact) and the background service worker (ES module).
+// Settings page (HTML + Preact) and the background service worker (ES module).
 export default defineConfig({
   root: resolve(__dirname, "src"),
   base: "./",
   plugins: [preact()],
-  publicDir: false,
+  publicDir: resolve(__dirname, "static"),
   build: {
     outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
@@ -16,7 +16,7 @@ export default defineConfig({
     modulePreload: false,
     rollupOptions: {
       input: {
-        sidepanel: resolve(__dirname, "src/sidepanel/index.html"),
+        settings: resolve(__dirname, "src/settings/index.html"),
         background: resolve(__dirname, "src/background/index.ts"),
       },
       output: {

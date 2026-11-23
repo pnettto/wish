@@ -111,6 +111,15 @@ export interface CreateIssueRequest {
   dryRun: boolean;
 }
 
+/** POST /requests/:id/followups: refine an existing request on the same issue/PR. */
+export interface CreateFollowupRequest {
+  /** Generated per follow-up draft; makes submission idempotent. */
+  clientFollowupId: string;
+  pageUrl: string;
+  pageTitle?: string;
+  annotations: Annotation[];
+}
+
 /** A request as returned by the Worker API. */
 export interface RequestView {
   id: string;
@@ -135,6 +144,10 @@ export interface RequestView {
   stalled: boolean;
   /** Link to the repo's Actions tab, for the stalled message. */
   actionsUrl: string;
+  /** Number of follow-up (`/pi`) comments posted on the issue. */
+  followupCount: number;
+  /** When the current automation round started waiting (issue creation or latest follow-up), unix ms. */
+  awaitingSince: number | null;
   createdAt: number;
   updatedAt: number;
 }

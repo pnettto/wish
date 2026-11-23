@@ -4,24 +4,48 @@
   "description": "Point at what should change on a page and file one GitHub issue.",
   "version": "0.1.0",
   "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
-    "default_title": "web-issuer"
+    "default_title": "web-issuer: add feedback (⌥⇧F)",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
   },
-  "side_panel": {
-    "default_path": "sidepanel/index.html"
-  },
+  "options_page": "settings/index.html",
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
+  "commands": {
+    "toggle-feedback": {
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
+      "description": "Toggle feedback mode on this page"
+    },
+    "toggle-preview": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Swap between the live site and the preview"
+    }
+  },
   "permissions": [
-    "sidePanel",
     "storage",
     "identity",
     "scripting",
     "activeTab",
     "tabs",
-    "alarms"
+    "alarms",
+    "notifications",
+    "webNavigation"
   ],
   "host_permissions": [
     "https://issuer.pnetto.store/*"

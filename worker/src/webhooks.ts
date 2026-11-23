@@ -106,7 +106,8 @@ async function onIssueComment(env: Env, p: IssueCommentPayload): Promise<void> {
 function isOurRun(env: Env, run: WorkflowRunPayload["workflow_run"]): boolean {
   return (
     run.name === PI_WORKFLOW &&
-    run.event === "issues" &&
+    // Follow-up `/pi` comments start runs from issue_comment events.
+    (run.event === "issues" || run.event === "issue_comment") &&
     run.actor?.login.toLowerCase() === env.ALLOWED_LOGIN.toLowerCase()
   );
 }

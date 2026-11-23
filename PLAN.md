@@ -1,5 +1,10 @@
 # web-issuer: page feedback → GitHub issues (Chrome extension + Cloudflare backend)
 
+> **UI superseded:** This document describes the original side-panel design. The extension now uses
+> **in-page controls** (floating dock + preview banner). See **[docs/UX-PLAN.md](docs/UX-PLAN.md)**
+> for the current implementation. The Worker, webhooks, issue format, tracking and security rules
+> below remain authoritative; only §1 (User experience) is outdated.
+
 A small feedback-to-GitHub tool, not a project-management tool:
 
 **Open a page → point at what should change → submit one issue → follow the resulting automation → open the preview when changes are ready.**

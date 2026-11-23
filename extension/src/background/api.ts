@@ -1,5 +1,10 @@
-import type { CreateIssueRequest, ReposResponse, RequestView } from "@web-issuer/shared";
+import type { CreateFollowupRequest, CreateIssueRequest, ReposResponse, RequestView } from "@web-issuer/shared";
 import { API_BASE } from "../config";
+import { chromeStore, KEYS } from "../storage";
+
+// The only module that talks to the Worker. Used by the service worker and the
+// settings page (both extension origins, which the Worker's CORS allows).
+// Content scripts never see the session token.
 
 export class ApiError extends Error {
   constructor(
@@ -36,6 +41,8 @@ export const api = {
   createIssue: (session: string, body: CreateIssueRequest) =>
     call<RequestView>(session, "/issues", { method: "POST", body: JSON.stringify(body) }),
   request: (session: string, id: string) => call<RequestView>(session, `/requests/${encodeURIComponent(id)}`),
+  followup: (session: string, id: string, body: CreateFollowupRequest) =>
+    call<RequestView>(session, `/requests/${encodeURIComponent(id)}/followups`, { method: "POST", body: JSON.stringify(body) }),
   integrate: (session: string, id: string) =>
     call<RequestView>(session, `/requests/${encodeURIComponent(id)}/integrate`, { method: "POST" }),
   logout: (session: string) => call<void>(session, "/auth/logout", { method: "POST" }),
@@ -57,4 +64,18 @@ export async function connectGitHub(): Promise<string> {
   const session = fragment.get("session");
   if (!session) throw new Error("GitHub sign-in failed. Try again.");
   return session;
+}
+
+export function getSession(): Promise<string | undefined> {
+  return chromeStore.get<string>(KEYS.session);
+}
+
+export async function signOut(): Promise<void> {
+  const session = await getSession();
+  await chromeStore.remove(KEYS.session);
+  if (session) await api.logout(session).catch(() => undefined);
+}
+
+export function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatIssueBody, parseMarker } from "../src/issue-body";
+import { formatFollowupBody, formatIssueBody, parseMarker } from "../src/issue-body";
 import type { Annotation } from "../src/types";
 
 const base: Omit<Annotation, "id" | "comment" | "locator" | "kind" | "text" | "rect" | "tag"> = {
@@ -109,5 +109,32 @@ Position: 640,420 180×24 in a 1440×900 viewport
   it("sanitises the marker id", () => {
     const body = formatIssueBody({ requestId: "abc --> <b>", pageUrl: "https://e.com/", annotations, dryRun: false });
     expect(body).toContain("<!-- web-issuer:abc-b -->");
+  });
+});
+
+describe("formatFollowupBody", () => {
+  it("starts with /pi, links the (redacted) preview page and keeps its own marker", () => {
+    const body = formatFollowupBody({
+      followupId: "f-1",
+      pageUrl: "https://pi-issue-142-hawk.pedro-535.workers.dev/pricing?token=abc#x",
+      pageTitle: "Pricing",
+      annotations: [annotations[1]!],
+    });
+    expect(body).toBe(`/pi Apply the follow-up changes below.
+
+## Page
+Pricing — https://pi-issue-142-hawk.pedro-535.workers.dev/pricing?token=REDACTED
+
+## Requested changes
+
+### 1. Explain what the usage limit includes
+Target: text “10,000 requests”
+Element reference: \`[data-testid="usage-limit"]\`
+Position: 640,420 180×24 in a 1440×900 viewport
+
+<!-- web-issuer-followup:f-1 -->
+`);
+    // Not mistaken for the issue's own marker.
+    expect(parseMarker(body)).toBeNull();
   });
 });

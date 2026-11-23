@@ -134,6 +134,8 @@ export async function seedRequest(env: Env, overrides: Partial<RequestRow> = {})
     merged_at: null,
     deploy_run_id: null,
     deploy_run_url: null,
+    awaiting_since: overrides.issue_created_at === undefined ? ISSUE_CREATED_AT : overrides.issue_created_at,
+    followup_count: 0,
     ...overrides,
   };
   const keys = Object.keys(row);

@@ -7,7 +7,7 @@ VALUES ('7fef60999ea6a84de15934221684243e184aff47f2383ab23e0b4e5b88c534af', 'pne
 
 -- Issue #142 on pnettto/hawk, created 2026-11-23T10:00:00Z, matching the fixtures.
 INSERT OR REPLACE INTO requests (id, client_request_id, github_login, repo, issue_number, issue_url, issue_created_at,
-  title, page_url, dry_run, state, created_at, updated_at)
+  title, page_url, dry_run, state, created_at, updated_at, awaiting_since)
 VALUES ('00000000-0000-4000-8000-000000000142', 'seed-142', 'pnettto', 'pnettto/hawk', 142,
   'https://github.com/pnettto/hawk/issues/142', 1795428000000, 'Improve the pricing page',
-  'https://example.com/pricing', 0, 'created', 1795428000000, 1795428000000);
+  'https://example.com/pricing', 0, 'created', 1795428000000, 1795428000000, 1795428000000);

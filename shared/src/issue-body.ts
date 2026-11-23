@@ -4,6 +4,8 @@ import type { Annotation } from "./types";
 export const PI_COMMAND_LINE = "/pi Apply the requested changes below.";
 export const DRY_RUN_LINE = "> web-issuer dry run: automation not triggered.";
 export const MARKER_PREFIX = "<!-- web-issuer:";
+export const FOLLOWUP_COMMAND_LINE = "/pi Apply the follow-up changes below.";
+export const FOLLOWUP_MARKER_PREFIX = "<!-- web-issuer-followup:";
 
 export interface IssueBodyInput {
   requestId: string;
@@ -72,6 +74,27 @@ export function formatIssueBody(input: IssueBodyInput): string {
     `## Page\n${pageTitle ? `${pageTitle} — ${pageUrl}` : pageUrl}`,
     `## Requested changes\n\n${input.annotations.map(formatAnnotation).join("\n\n")}`,
     `${MARKER_PREFIX}${safeMarkerId(input.requestId)} -->`,
+  ];
+  return `${sections.join("\n\n")}\n`;
+}
+
+export interface FollowupBodyInput {
+  followupId: string;
+  /** The page the follow-up was made on (usually the preview). */
+  pageUrl: string;
+  pageTitle?: string;
+  annotations: Annotation[];
+}
+
+/** Body of a follow-up comment on the request's issue (UX-PLAN §5.6). */
+export function formatFollowupBody(input: FollowupBodyInput): string {
+  const pageUrl = redactUrl(input.pageUrl);
+  const pageTitle = oneLine(input.pageTitle ?? "");
+  const sections = [
+    FOLLOWUP_COMMAND_LINE,
+    `## Page\n${pageTitle ? `${pageTitle} — ${pageUrl}` : pageUrl}`,
+    `## Requested changes\n\n${input.annotations.map(formatAnnotation).join("\n\n")}`,
+    `${FOLLOWUP_MARKER_PREFIX}${safeMarkerId(input.followupId)} -->`,
   ];
   return `${sections.join("\n\n")}\n`;
 }

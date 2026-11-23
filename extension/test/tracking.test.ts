@@ -1,7 +1,7 @@
 import type { RequestView } from "@web-issuer/shared";
 import { describe, expect, it } from "vitest";
 import { memoryStore } from "../src/storage";
-import { activeRequests, loadRequests, saveRequest, summarize } from "../src/tracking";
+import { activeRequests, loadRequests, progressOf, saveRequest, summarize } from "../src/tracking";
 
 const view = (over: Partial<RequestView> = {}): RequestView => ({
   id: "r1",
@@ -22,6 +22,8 @@ const view = (over: Partial<RequestView> = {}): RequestView => ({
   message: null,
   stalled: false,
   actionsUrl: "https://github.com/pnettto/hawk/actions",
+  followupCount: 0,
+  awaitingSince: null,
   createdAt: Date.now(),
   updatedAt: Date.now(),
   ...over,
@@ -54,5 +56,19 @@ describe("tracking", () => {
     expect(summarize(view({ state: "merged", message: "Merged. No production deploy was triggered." })).headline).toBe(
       "Merged. No production deploy was triggered.",
     );
+  });
+});
+
+describe("refinements", () => {
+  it("labels follow-up rounds", () => {
+    const s = summarize(view({ state: "running", followupCount: 2 }));
+    expect(s.steps[0]?.label).toBe("Refinement 2 sent");
+    expect(s.headline).toBe("Applying refinement 2…");
+    expect(summarize(view({ state: "succeeded", followupCount: 1 })).steps.at(-1)?.label).toBe("Refinement 1 applied");
+  });
+
+  it("reports progress per state", () => {
+    expect(progressOf(view({ state: "created" }))).toBeLessThan(progressOf(view({ state: "running" })));
+    expect(progressOf(view({ state: "succeeded" }))).toBe(1);
   });
 });

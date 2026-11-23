@@ -38,10 +38,29 @@ export interface StatusSummary {
   tone: "neutral" | "success" | "warning" | "error";
 }
 
+/** Progress through one automation round, 0–1 (for the dock's progress pill). */
+export function progressOf(r: RequestView): number {
+  switch (r.state) {
+    case "creating":
+      return 0.05;
+    case "created":
+      return 0.2;
+    case "started":
+      return 0.4;
+    case "running":
+      return 0.65;
+    case "integrating":
+      return 0.85;
+    default:
+      return 1;
+  }
+}
+
 export function summarize(r: RequestView): StatusSummary {
-  const created: Step = { label: "Issue created", done: true };
+  const n = r.followupCount ?? 0;
+  const created: Step = { label: n > 0 ? `Refinement ${n} sent` : "Issue created", done: true };
   const started: Step = { label: "Automation started", done: true };
-  const applied: Step = { label: "Changes applied", done: true };
+  const applied: Step = { label: n > 0 ? `Refinement ${n} applied` : "Changes applied", done: true };
   const merged: Step = { label: r.prNumber ? `PR #${r.prNumber} merged` : "PR merged", done: true };
   switch (r.state) {
     case "creating":
@@ -59,7 +78,7 @@ export function summarize(r: RequestView): StatusSummary {
     case "started":
       return { steps: [created, started], headline: "Starting…", tone: "neutral" };
     case "running":
-      return { steps: [created, started], headline: "Applying changes…", tone: "neutral" };
+      return { steps: [created, started], headline: n > 0 ? `Applying refinement ${n}…` : "Applying changes…", tone: "neutral" };
     case "succeeded":
       return {
         steps: [created, started, applied],

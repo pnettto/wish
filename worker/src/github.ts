@@ -134,6 +134,26 @@ export async function listInstalledRepos(token: string): Promise<string[]> {
   return [...repos].sort((a, b) => a.localeCompare(b));
 }
 
+export interface CreatedComment {
+  id: number;
+  html_url: string;
+  created_at: string;
+}
+
+export function createIssueComment(token: string, repo: string, issue: number, body: string): Promise<CreatedComment> {
+  return gh<CreatedComment>(token, "POST", `${repoPath(repo)}/issues/${issue}/comments`, { body });
+}
+
+/** pi acknowledges a follow-up with 👀 on the comment (not the issue). */
+export async function commentHasEyesReaction(token: string, repo: string, commentId: number): Promise<boolean> {
+  const reactions = await gh<{ content: string }[]>(
+    token,
+    "GET",
+    `${repoPath(repo)}/issues/comments/${commentId}/reactions?content=eyes&per_page=100`,
+  );
+  return reactions.length > 0;
+}
+
 export async function issueHasEyesReaction(token: string, repo: string, issue: number): Promise<boolean> {
   const reactions = await gh<{ content: string; user: { login: string } | null }[]>(
     token,
@@ -155,8 +175,13 @@ export interface WorkflowRunSummary {
   actor: { login: string } | null;
 }
 
-export async function listIssueRuns(token: string, repo: string, sinceIso: string): Promise<WorkflowRunSummary[]> {
-  const q = new URLSearchParams({ event: "issues", created: `>=${sinceIso}`, per_page: "30" });
+export async function listIssueRuns(
+  token: string,
+  repo: string,
+  sinceIso: string,
+  event: "issues" | "issue_comment" = "issues",
+): Promise<WorkflowRunSummary[]> {
+  const q = new URLSearchParams({ event, created: `>=${sinceIso}`, per_page: "30" });
   const data = await gh<{ workflow_runs: WorkflowRunSummary[] }>(token, "GET", `${repoPath(repo)}/actions/runs?${q}`);
   return data.workflow_runs;
 }

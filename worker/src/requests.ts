@@ -1,5 +1,6 @@
 import {
   parsePiReport,
+  formatFollowupBody,
   formatIssueBody,
   INTEGRATABLE_STATES,
   MERGED_STATES,
@@ -7,6 +8,7 @@ import {
   REQUEST_STATES,
   type PiReport,
   type Annotation,
+  type CreateFollowupRequest,
   type CreateIssueRequest,
   type RequestState,
   type RequestView,
@@ -15,7 +17,9 @@ import { accessToken, type SessionRow } from "./auth";
 import type { Env } from "./env";
 import { isTracked } from "./env";
 import {
+  commentHasEyesReaction,
   createIssue,
+  createIssueComment,
   getCommitDate,
   getPull,
   GitHubError,
@@ -76,6 +80,14 @@ export interface RequestRow {
   merged_at: number | null;
   deploy_run_id: number | null;
   deploy_run_url: string | null;
+  /** Start of the current automation round (issue creation or latest follow-up). */
+  awaiting_since: number | null;
+  followup_count: number;
+}
+
+/** "Waiting since" for the current round; falls back for rows created before migration 0003. */
+export function awaitingSince(row: Pick<RequestRow, "awaiting_since" | "issue_created_at">): number | null {
+  return row.awaiting_since ?? row.issue_created_at;
 }
 
 export type RequestPatch = Partial<
@@ -95,15 +107,14 @@ export type RequestPatch = Partial<
     | "merged_at"
     | "deploy_run_id"
     | "deploy_run_url"
+    | "awaiting_since"
+    | "followup_count"
   >
 >;
 
 export function toView(row: RequestRow, now = Date.now()): RequestView {
-  const stalled =
-    row.state === "created" &&
-    !row.dry_run &&
-    row.issue_created_at !== null &&
-    now - row.issue_created_at > STALLED_AFTER_MS;
+  const since = awaitingSince(row);
+  const stalled = row.state === "created" && !row.dry_run && since !== null && now - since > STALLED_AFTER_MS;
   return {
     id: row.id,
     clientRequestId: row.client_request_id,
@@ -123,6 +134,8 @@ export function toView(row: RequestRow, now = Date.now()): RequestView {
     message: stalled && !row.message ? "Automation hasn't started" : row.message,
     stalled,
     actionsUrl: `https://github.com/${row.repo}/actions`,
+    followupCount: row.followup_count ?? 0,
+    awaitingSince: since,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -154,7 +167,7 @@ export function findByMergeSha(env: Env, repo: string, sha: string): Promise<Req
 export async function pendingRequests(env: Env, repo: string): Promise<RequestRow[]> {
   const { results } = await env.DB.prepare(
     `SELECT * FROM requests WHERE repo = ? COLLATE NOCASE AND dry_run = 0 AND run_id IS NULL
-       AND state IN ('created', 'started', 'running') ORDER BY issue_created_at`,
+       AND state IN ('created', 'started', 'running') ORDER BY COALESCE(awaiting_since, issue_created_at)`,
   )
     .bind(repo)
     .all<RequestRow>();
@@ -169,20 +182,21 @@ export interface RunCandidate {
 
 /**
  * Pick the request a `pi` run belongs to: created within 2 min after the
- * issue; if several match, prefer the one whose title equals the run's
- * display_title, then the closest in time.
+ * issue (or the latest follow-up comment); if several match, prefer the one
+ * whose title equals the run's display_title, then the closest in time.
  */
 export function matchRun(requests: RequestRow[], run: RunCandidate): RequestRow | null {
   const inWindow = requests.filter((r) => {
-    if (r.issue_created_at === null) return false;
-    const delta = run.createdAt - r.issue_created_at;
+    const since = awaitingSince(r);
+    if (since === null) return false;
+    const delta = run.createdAt - since;
     return delta >= -RUN_MATCH_SKEW_MS && delta <= RUN_MATCH_WINDOW_MS;
   });
   if (inWindow.length <= 1) return inWindow[0] ?? null;
   const byTitle = inWindow.filter((r) => r.title === run.displayTitle);
   const pool = byTitle.length > 0 ? byTitle : inWindow;
   return pool.reduce((best, r) =>
-    Math.abs(run.createdAt - (r.issue_created_at ?? 0)) < Math.abs(run.createdAt - (best.issue_created_at ?? 0)) ? r : best,
+    Math.abs(run.createdAt - (awaitingSince(r) ?? 0)) < Math.abs(run.createdAt - (awaitingSince(best) ?? 0)) ? r : best,
   );
 }
 
@@ -219,6 +233,8 @@ export async function scheduleFailure(env: Env, failure: PendingFailure): Promis
 export async function applyPendingFailure(env: Env, failure: PendingFailure): Promise<void> {
   const row = await getRequest(env, failure.requestId);
   if (!row || !isAwaitingReport(row)) return;
+  // A follow-up since then unlinked the run: the timer belongs to an older round.
+  if (row.run_id !== failure.runId) return;
   await updateRequest(env, row, {
     state: "failed",
     run_id: failure.runId,
@@ -244,11 +260,12 @@ export async function updateRequest(env: Env, row: RequestRow, patch: RequestPat
 
 /**
  * Apply a `**pi:**` report to a request. Only the first report posted after
- * the issue was created counts.
+ * the current round started (issue creation or the latest follow-up) counts.
  */
 export async function applyReport(env: Env, row: RequestRow, report: PiReport, postedAt: number): Promise<RequestRow> {
   if (row.dry_run || !AWAITING_REPORT.includes(row.state)) return row;
-  if (row.issue_created_at !== null && !Number.isNaN(postedAt) && postedAt < row.issue_created_at) return row;
+  const since = awaitingSince(row);
+  if (since !== null && !Number.isNaN(postedAt) && postedAt < since) return row;
   const message =
     report.outcome === "failed" && report.message !== "the run failed."
       ? report.message
@@ -400,9 +417,9 @@ export async function handleCreateIssue(env: Env, session: SessionRow, body: unk
   const createdAt = Date.parse(issue.created_at);
   const issueCreatedAt = Number.isNaN(createdAt) ? Date.now() : createdAt;
   await env.DB.prepare(
-    "UPDATE requests SET issue_number = ?, issue_url = ?, issue_created_at = ?, state = ?, updated_at = ? WHERE id = ?",
+    "UPDATE requests SET issue_number = ?, issue_url = ?, issue_created_at = ?, awaiting_since = ?, state = ?, updated_at = ? WHERE id = ?",
   )
-    .bind(issue.number, issue.html_url, issueCreatedAt, state, Date.now(), id)
+    .bind(issue.number, issue.html_url, issueCreatedAt, issueCreatedAt, state, Date.now(), id)
     .run();
   const row = await getRequest(env, id);
   if (!row) throw new HttpError(500, "db_error");
@@ -450,8 +467,9 @@ type Check = (env: Env, session: SessionRow, row: RequestRow) => Promise<Request
 function safetyCheck(row: RequestRow): Check | null {
   const now = Date.now();
   let check: Check | null = null;
-  if (!row.dry_run && AWAITING_REPORT.includes(row.state) && row.issue_created_at !== null && row.issue_number !== null) {
-    if (now - row.issue_created_at >= STALL_CHECK_AFTER_MS) check = checkAutomation;
+  const since = awaitingSince(row);
+  if (!row.dry_run && AWAITING_REPORT.includes(row.state) && since !== null && row.issue_number !== null) {
+    if (now - since >= STALL_CHECK_AFTER_MS) check = checkAutomation;
   } else if (row.state === "integrating" && row.merge_sha && row.merged_at !== null) {
     if (now - row.merged_at >= DEPLOY_CHECK_AFTER_MS) check = checkDeploy;
   }
@@ -469,16 +487,20 @@ function isoSeconds(ms: number): string {
 /** Look for a missed report comment, then for a missed run start. */
 const checkAutomation: Check = async (env, session, row) => {
   const token = await accessToken(env, session);
-  const since = isoSeconds(row.issue_created_at ?? 0);
-  const comments = await listIssueComments(token, row.repo, row.issue_number!, since);
+  const sinceMs = awaitingSince(row) ?? 0;
+  const comments = await listIssueComments(token, row.repo, row.issue_number!, isoSeconds(sinceMs));
   for (const c of comments) {
     if (c.user?.login !== REPORT_AUTHOR) continue;
+    // `since` filters on updated_at; skip reports from an earlier round.
+    if (Date.parse(c.created_at) < sinceMs) continue;
     const report = parsePiReport(c.body ?? "");
     if (report) return applyReport(env, row, report, Date.parse(c.created_at));
   }
   if (row.state !== "created") return row;
 
-  const runs = await listIssueRuns(token, row.repo, isoSeconds((row.issue_created_at ?? 0) - RUN_MATCH_SKEW_MS));
+  const followup = row.followup_count > 0 ? await latestFollowup(env, row.id) : null;
+  const event = followup ? "issue_comment" : "issues";
+  const runs = await listIssueRuns(token, row.repo, isoSeconds(sinceMs - RUN_MATCH_SKEW_MS), event);
   const pending = await pendingRequests(env, row.repo);
   for (const run of runs) {
     if (run.name !== PI_WORKFLOW || run.actor?.login.toLowerCase() !== env.ALLOWED_LOGIN.toLowerCase()) continue;
@@ -487,9 +509,10 @@ const checkAutomation: Check = async (env, session, row) => {
       return updateRequest(env, row, { state: "started", run_id: run.id, run_url: run.html_url });
     }
   }
-  if (row.issue_number !== null && (await issueHasEyesReaction(token, row.repo, row.issue_number))) {
-    return updateRequest(env, row, { state: "started" });
-  }
+  const acknowledged = followup
+    ? followup.comment_id !== null && (await commentHasEyesReaction(token, row.repo, followup.comment_id))
+    : row.issue_number !== null && (await issueHasEyesReaction(token, row.repo, row.issue_number));
+  if (acknowledged) return updateRequest(env, row, { state: "started" });
   return row;
 };
 
@@ -551,4 +574,116 @@ export async function handleIntegrate(env: Env, session: SessionRow, id: string)
     }
     throw err;
   }
+}
+
+// ---------------------------------------------------------------------------
+// POST /requests/:id/followups
+
+export interface FollowupRow {
+  id: string;
+  request_id: string;
+  client_followup_id: string;
+  comment_id: number | null;
+  comment_url: string | null;
+  created_at: number;
+}
+
+function latestFollowup(env: Env, requestId: string): Promise<FollowupRow | null> {
+  return env.DB.prepare("SELECT * FROM followups WHERE request_id = ? AND comment_id IS NOT NULL ORDER BY created_at DESC LIMIT 1")
+    .bind(requestId)
+    .first<FollowupRow>();
+}
+
+function getFollowupByClientId(env: Env, clientFollowupId: string): Promise<FollowupRow | null> {
+  return env.DB.prepare("SELECT * FROM followups WHERE client_followup_id = ?").bind(clientFollowupId).first<FollowupRow>();
+}
+
+export function parseCreateFollowup(body: unknown): CreateFollowupRequest {
+  if (!body || typeof body !== "object") throw new HttpError(400, "invalid_request", "JSON body required");
+  const b = body as Record<string, unknown>;
+  const clientFollowupId = str(b.clientFollowupId, 100, "clientFollowupId");
+  const pageUrl = str(b.pageUrl, 4000, "pageUrl");
+  if (!/^https?:\/\//i.test(pageUrl)) throw new HttpError(400, "invalid_request", "pageUrl must be http(s)");
+  if (!Array.isArray(b.annotations) || b.annotations.length === 0) {
+    throw new HttpError(400, "invalid_request", "at least one comment is required");
+  }
+  if (b.annotations.length > MAX_ANNOTATIONS) throw new HttpError(400, "invalid_request", "too many comments");
+  return {
+    clientFollowupId,
+    pageUrl,
+    pageTitle: typeof b.pageTitle === "string" ? b.pageTitle.slice(0, 300) : undefined,
+    annotations: b.annotations.map(parseAnnotation),
+  };
+}
+
+/**
+ * Post a `/pi` follow-up comment on the request's issue. pi continues the same
+ * session on the same branch, so the PR and preview URL stay the same.
+ */
+export async function handleFollowup(env: Env, session: SessionRow, id: string, body: unknown): Promise<RequestView> {
+  const input = parseCreateFollowup(body);
+  const row = await loadOwnedRequest(env, session, id);
+
+  const existing = await getFollowupByClientId(env, input.clientFollowupId);
+  if (existing) {
+    if (existing.request_id !== row.id) throw new HttpError(409, "conflict", "clientFollowupId already used");
+    if (existing.comment_id === null) throw new HttpError(409, "in_progress", "This follow-up is already being posted");
+    return toView(row);
+  }
+
+  if (row.dry_run) throw new HttpError(409, "dry_run", "Dry runs have no automation to refine. File a new request instead.");
+  if (MERGED_STATES.includes(row.state)) throw new HttpError(409, "merged", "This request was already merged. File a new request instead.");
+  if (row.state === "creating" || AWAITING_REPORT.includes(row.state)) {
+    throw new HttpError(409, "in_progress", "The automation is still running. Wait for it to finish first.");
+  }
+  if (row.state === "untracked" || row.issue_number === null) {
+    throw new HttpError(409, "untracked", "Progress isn't tracked for this repository, so it can't be refined here.");
+  }
+
+  const followupId = crypto.randomUUID();
+  const now = Date.now();
+  try {
+    await env.DB.prepare("INSERT INTO followups (id, request_id, client_followup_id, created_at) VALUES (?, ?, ?, ?)")
+      .bind(followupId, row.id, input.clientFollowupId, now)
+      .run();
+  } catch {
+    const raced = await getFollowupByClientId(env, input.clientFollowupId);
+    if (raced) throw new HttpError(409, "in_progress", "This follow-up is already being posted");
+    throw new HttpError(500, "db_error");
+  }
+
+  let comment;
+  try {
+    const token = await accessToken(env, session);
+    const text = formatFollowupBody({
+      followupId,
+      pageUrl: input.pageUrl,
+      pageTitle: input.pageTitle,
+      annotations: input.annotations,
+    });
+    comment = await createIssueComment(token, row.repo, row.issue_number, text);
+  } catch (err) {
+    await env.DB.prepare("DELETE FROM followups WHERE id = ?").bind(followupId).run();
+    if (err instanceof HttpError) throw err;
+    if (err instanceof GitHubError) {
+      throw new HttpError(err.status === 401 ? 401 : 502, err.status === 401 ? "github_reauth" : "github_error", err.message);
+    }
+    throw err;
+  }
+
+  const postedAt = Date.parse(comment.created_at);
+  const since = Number.isNaN(postedAt) ? Date.now() : postedAt;
+  await env.DB.prepare("UPDATE followups SET comment_id = ?, comment_url = ?, created_at = ? WHERE id = ?")
+    .bind(comment.id, comment.html_url, since, followupId)
+    .run();
+  // Keep pr_url/preview_url: the branch (and so the preview) stays the same.
+  const next = await updateRequest(env, row, {
+    state: "created",
+    awaiting_since: since,
+    followup_count: row.followup_count + 1,
+    run_id: null,
+    run_url: null,
+    message: null,
+  });
+  return toView(next);
 }

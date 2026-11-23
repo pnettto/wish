@@ -1,0 +1,23 @@
+{
+  "action": "in_progress",
+  "workflow_job": {
+    "id": 2,
+    "run_id": 2234567890,
+    "name": "pi",
+    "workflow_name": "pi",
+    "status": "in_progress",
+    "conclusion": null,
+    "html_url": "https://github.com/pnettto/hawk/actions/runs/2234567890/job/2",
+    "started_at": "2026-11-23T10:15:20Z"
+  },
+  "repository": {
+    "id": 1,
+    "name": "hawk",
+    "full_name": "pnettto/hawk",
+    "private": false,
+    "html_url": "https://github.com/pnettto/hawk"
+  },
+  "sender": {
+    "login": "pnettto"
+  }
+}

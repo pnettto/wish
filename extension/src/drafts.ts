@@ -1,6 +1,6 @@
 import type { Annotation } from "@web-issuer/shared";
-import type { CapturedAnnotation } from "../messages";
-import { KEYS, type KeyValueStore } from "../storage";
+import type { CapturedAnnotation } from "./messages";
+import { KEYS, type KeyValueStore } from "./storage";
 
 export interface Draft {
   /** Generated when the draft is created; makes submission idempotent. */

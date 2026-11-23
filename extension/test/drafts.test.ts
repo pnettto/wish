@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CapturedAnnotation } from "../src/messages";
-import { DraftStore, defaultTitle, pageKey } from "../src/sidepanel/draft-store";
+import { DraftStore, defaultTitle, pageKey } from "../src/drafts";
 import { memoryStore } from "../src/storage";
 
 const captured = (comment: string): CapturedAnnotation => ({
