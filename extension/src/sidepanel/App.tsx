@@ -36,8 +36,8 @@ export function pageSupport(url: string): Support {
 
 async function currentTab(): Promise<TabInfo | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || !tab.url) return null;
-  return { id: tab.id, url: tab.url, title: tab.title ?? "" };
+  if (!tab?.id) return null;
+  return { id: tab.id, url: tab.url ?? tab.pendingUrl ?? "", title: tab.title ?? "" };
 }
 
 async function sendToTab(tabId: number, message: PanelMessage): Promise<unknown> {

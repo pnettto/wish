@@ -20,6 +20,7 @@
     "identity",
     "scripting",
     "activeTab",
+    "tabs",
     "alarms"
   ],
   "host_permissions": [
