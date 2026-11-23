@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pricing</title>
+    <style>
+      /* Hostile page CSS: the overlay must not be affected. */
+      * { box-sizing: content-box !important; }
+      div { border: 3px solid red; }
+      body { font-family: serif; margin: 40px; }
+      .card { display: inline-block; padding: 20px; margin: 10px; }
+    </style>
+  </head>
+  <body>
+    <section id="pricing">
+      <div class="card"><h2>Free</h2><button>Start</button></div>
+      <div class="card"><h2>Pro</h2><button id="upgrade">Upgrade</button></div>
+    </section>
+    <p data-testid="usage-limit">10,000 requests</p>
+    <label for="email">Email</label>
+    <input id="email" value="me@secret.example" />
+    <script>
+      window.pageClicks = 0;
+      document.getElementById("upgrade").addEventListener("click", () => window.pageClicks++);
+    </script>
+  </body>
+</html>

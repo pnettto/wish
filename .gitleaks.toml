@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public RSA key that pins the unpacked extension ID (PLAN §5.4); not a secret."
+paths = ['''^extension/manifest\.json$''']

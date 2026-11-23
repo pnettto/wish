@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "web-issuer",
+  "description": "Point at what should change on a page and file one GitHub issue.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "action": {
+    "default_title": "web-issuer"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "identity",
+    "scripting",
+    "activeTab",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://issuer.pnetto.store/*"
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAocsAUjlfwPcks0ol/9JygeQM6vpLSR7+66ZEo+0e8qusBh76hlzV5o5tFtE4e5gPk/XngbvwsKT5kxmgD4f9pFA7HZSAlwDPriLO040Jz7bTk6+KfeKNlcPB98XyWC8jRJec3lHMffDFVzY/pr/OAdzejOgJeHf8nLcCcQZahp1xV/0CdyWC2FKph39mIWBzQcQsM2GTFdPIzb3cQHfUZbReE146YztoiWQ+ro+OOpZN66vAR2fuQAkM4tMOLFx0bZQ33AY1mnkiRI2PwDm3XP32H3eQhY9mGwbQS+cjDgxGyLBkodlsnHe9CkyQgSjQ1zyTqzCnVSL0/37B8+x3LQIDAQAB"
+}
