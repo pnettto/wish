@@ -1,15 +1,15 @@
-import { isTerminalState } from "@web-issuer/shared";
+import { isTerminalState } from "@wish/shared";
 import { h, render } from "preact";
 import type { Snapshot } from "../messages";
 import { App } from "./app/App";
 import { createBridge } from "./app/bridge";
 import css from "./styles.css?inline";
 
-export const HOST_TAG = "web-issuer-overlay";
+export const HOST_TAG = "wish-overlay";
 
 declare global {
   interface Window {
-    __webIssuer?: { destroy(): void };
+    __wish?: { destroy(): void };
   }
 }
 
@@ -21,10 +21,10 @@ declare global {
  */
 function init() {
   if (window.top !== window) return;
-  if (window.__webIssuer) return;
+  if (window.__wish) return;
 
   const host = document.createElement(HOST_TAG);
-  host.setAttribute("data-web-issuer", "");
+  host.setAttribute("data-wish", "");
   host.style.cssText = "all:initial;position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;";
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
@@ -68,10 +68,10 @@ function init() {
   function destroy() {
     render(null, layer);
     host.remove();
-    delete window.__webIssuer;
+    delete window.__wish;
   }
 
-  window.__webIssuer = { destroy };
+  window.__wish = { destroy };
   draw();
 }
 

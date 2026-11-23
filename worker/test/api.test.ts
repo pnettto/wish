@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { handle } from "../src/app";
 import { decrypt, sha256Hex } from "../src/crypto";
 import type { SessionRow } from "../src/auth";

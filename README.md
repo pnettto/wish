@@ -1,4 +1,6 @@
-# web-issuer
+# Wish
+
+> Formerly `web-issuer`. Deployed infrastructure keeps the old name: the Cloudflare Worker and D1 database are `web-issuer`, and issues carry `<!-- web-issuer:… -->` markers.
 
 Page feedback → GitHub issues. Click the toolbar icon (or press **⌥⇧F**) to enter feedback mode on any page. Point at elements, comment on them, and file **one** issue. For `pnettto/hawk`, the issue starts with `/pi`, so hawk's existing `pi.yml` workflow implements the change, deploys a preview, and opens a PR. A floating dock shows progress and opens the preview in place. You can refine changes on the preview (follow-ups), then merge directly to production.
 
@@ -162,7 +164,7 @@ The preview banner's **Live ⇄ Preview** button (or **⌥⇧P**) swaps between 
 
 ### Settings and permissions
 
-The **settings page** (`chrome://extensions` → web-issuer → **Extension options**, or the dock's `⋯` → **Settings**) has:
+The **settings page** (`chrome://extensions` → Wish → **Extension options**, or the dock's `⋯` → **Settings**) has:
 
 - **Connect / Sign out GitHub**
 - **Allow preview sites** – requests permission for the preview pattern once (e.g. `https://*.pedro-535.workers.dev/*`). Without it, the preview banner and swap won't work.

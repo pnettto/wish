@@ -1,4 +1,4 @@
-import { parsePiReport, type RequestState } from "@web-issuer/shared";
+import { parsePiReport, type RequestState } from "@wish/shared";
 import { verifyGitHubSignature } from "./crypto";
 import type { Env } from "./env";
 import { isTracked } from "./env";

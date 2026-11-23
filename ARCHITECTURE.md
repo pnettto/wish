@@ -1,6 +1,6 @@
 # Architecture
 
-web-issuer has three parts: a **Chrome extension** that captures feedback, a **Cloudflare Worker** backend, and **GitHub** (hawk's `pi.yml` workflow), which does the building. `shared/` holds pure TypeScript used by both the extension and the Worker.
+Wish has three parts: a **Chrome extension** that captures feedback, a **Cloudflare Worker** backend, and **GitHub** (hawk's `pi.yml` workflow), which does the building. `shared/` holds pure TypeScript used by both the extension and the Worker.
 
 ## 1. Components
 

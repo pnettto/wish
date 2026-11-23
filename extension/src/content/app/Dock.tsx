@@ -1,4 +1,4 @@
-import { isTerminalState, MERGED_STATES, type RequestView } from "@web-issuer/shared";
+import { isTerminalState, MERGED_STATES, type RequestView } from "@wish/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { DockPrefs, Snapshot, ToBg } from "../../messages";
 import { canFollowUp, hasOpenablePreview } from "../../page";
@@ -396,11 +396,11 @@ export function Dock(props: DockProps) {
         <button
           type="button"
           class="pill"
-          aria-label="Expand web-issuer"
+          aria-label="Expand Wish"
           onClick={() => savePrefs({ ...prefs, collapsed: false })}
         >
           <span class={`dot ${active ? "active" : count ? "accent" : ""}`} aria-hidden="true" />
-          {s.sending ? "Sending…" : active ? "Building…" : count ? `${count}` : "web-issuer"}
+          {s.sending ? "Sending…" : active ? "Building…" : count ? `${count}` : "Wish"}
         </button>
       </div>
     );
@@ -455,12 +455,12 @@ export function Dock(props: DockProps) {
   }
 
   return (
-    <div class="dock" style={style} role="region" aria-label="web-issuer">
+    <div class="dock" style={style} role="region" aria-label="Wish">
       <div class="dock-head">
         <span class="grip" title="Drag to move" aria-hidden="true" onPointerDown={onGrip as never}>
           ⋮⋮
         </span>
-        <span class="brand">web-issuer</span>
+        <span class="brand">Wish</span>
         {s.signedIn && !target && (s.mode || count > 0) && <RepoChip s={s} send={send} disabled={!!s.sending} />}
         {target && <span class="chip">{target.prNumber ? `PR #${target.prNumber}` : "Follow-up"}</span>}
         <span class="spacer" />

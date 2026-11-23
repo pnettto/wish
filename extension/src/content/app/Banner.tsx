@@ -1,4 +1,4 @@
-import { INTEGRATABLE_STATES, isTerminalState, MERGED_STATES, type RequestView } from "@web-issuer/shared";
+import { INTEGRATABLE_STATES, isTerminalState, MERGED_STATES, type RequestView } from "@wish/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { ToBg } from "../../messages";
 import { summarize } from "../../tracking";

@@ -1,4 +1,4 @@
-import { isTerminalState, type RepoInfo, type RequestView } from "@web-issuer/shared";
+import { isTerminalState, type RepoInfo, type RequestView } from "@wish/shared";
 import { PREVIEW_PATTERN, UNDO_MS } from "../config";
 import { DraftStore, pageKey, type Draft } from "../drafts";
 import { PORT_NAME, type DockPrefs, type Notice, type Snapshot, type ToBg, type ToContent } from "../messages";
@@ -394,7 +394,7 @@ export class Hub {
       const res = await inject(tab.id);
       if (!res.ok) {
         await this.setMode(tab.id, false);
-        await this.tell(tab.id, `web-issuer can't run on this page (${res.error}). Frames and some sites aren't supported.`);
+        await this.tell(tab.id, `Wish can't run on this page (${res.error}). Frames and some sites aren't supported.`);
         return;
       }
     }
@@ -419,13 +419,13 @@ export class Hub {
 
   /** Show a reason outside the page (badge title + notification). */
   private async tell(tabId: number, text: string): Promise<void> {
-    await chrome.action.setTitle({ tabId, title: `web-issuer: ${text}` });
+    await chrome.action.setTitle({ tabId, title: `Wish: ${text}` });
     await chrome.action.setBadgeText({ tabId, text: "–" });
     try {
       await chrome.notifications.create(`wi-tell:${tabId}`, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("icons/icon-128.png"),
-        title: "web-issuer",
+        title: "Wish",
         message: text,
         priority: 0,
       });
@@ -727,7 +727,7 @@ export class Hub {
       if (!matchesPattern(origin + "/", PREVIEW_PATTERN)) {
         await chrome.permissions.remove({ origins: [originPattern(origin)] }).catch(() => false);
       }
-      this.setNotice(conn.tabId, { text: `web-issuer no longer starts on ${new URL(origin).host}.`, tone: "info" });
+      this.setNotice(conn.tabId, { text: `Wish no longer starts on ${new URL(origin).host}.`, tone: "info" });
       return;
     }
     if (await hasOrigins([originPattern(origin)])) {
@@ -742,7 +742,7 @@ export class Hub {
     if (!kept.includes(origin)) kept.push(origin);
     await chromeStore.set(KEYS.keptSites, kept);
     await reconcileRegistrations(kept);
-    this.setNotice(tabId, { text: `web-issuer stays on for ${new URL(origin).host}.`, tone: "info" });
+    this.setNotice(tabId, { text: `Wish stays on for ${new URL(origin).host}.`, tone: "info" });
   }
 
   /**

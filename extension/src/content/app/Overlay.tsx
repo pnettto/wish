@@ -1,4 +1,4 @@
-import type { Annotation } from "@web-issuer/shared";
+import type { Annotation } from "@wish/shared";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { annotationBox, type Box } from "./layout";
 

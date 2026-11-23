@@ -1,4 +1,4 @@
-# UX plan: move web-issuer into the page
+# UX plan: move Wish into the page
 
 Handover document for implementing the in-page redesign. Read this file fully, then `README.md`
 and `PLAN.md` (the original design; still authoritative for the Worker, webhooks, issue format
@@ -49,7 +49,7 @@ Gotchas learned so far:
   next frame; the first keystrokes would hit the page). Same for syncing the picker's `busy`/start/stop.
 - E2E stubs the background with `extension/test/e2e/fake-background.js` (a small reducer over
   `Snapshot`). Messages reach it asynchronously; use the `nextOf()` helper in `content.test.mjs`.
-- Locators in Playwright pierce the open shadow root: `page.locator("web-issuer-overlay .dock")`.
+- Locators in Playwright pierce the open shadow root: `page.locator("wish-overlay .dock")`.
 - hawk posts follow-up reports on the **issue** (checked in hawk's `.github/workflows/pi.yml`), so PR
   copies are still ignored. The 👀 ack for a follow-up is on the comment, not the issue.
 - `chrome.storage.local` is readable by content scripts; the content code simply never reads it.

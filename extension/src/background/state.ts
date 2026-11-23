@@ -1,4 +1,4 @@
-import type { RepoInfo } from "@web-issuer/shared";
+import type { RepoInfo } from "@wish/shared";
 import type { Draft } from "../drafts";
 import type { DockPrefs, Notice, Snapshot } from "../messages";
 import { originOf, pageSupport, pathOf, previewRequestFor, productionUrlFor, type SendMode } from "../page";

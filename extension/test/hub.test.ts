@@ -1,4 +1,4 @@
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakePort, installChrome, type FakePort } from "./chrome-fake";
 

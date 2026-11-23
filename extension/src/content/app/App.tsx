@@ -1,4 +1,4 @@
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Snapshot, ToBg } from "../../messages";
 import { canFollowUp } from "../../page";

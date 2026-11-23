@@ -64,7 +64,7 @@ async function openPage(url = prodUrl, initial = {}, opts = {}) {
   return page;
 }
 
-const ui = (page, sel) => page.locator(`web-issuer-overlay ${sel}`);
+const ui = (page, sel) => page.locator(`wish-overlay ${sel}`);
 const sent = (page) => page.evaluate(() => window.__sent);
 const lastOf = async (page, t) => (await sent(page)).filter((m) => m.t === t).at(-1);
 /** Wait for the next message of type `t` (messages reach the fake background asynchronously). */
@@ -162,7 +162,7 @@ test("annotate: hover label, traversal, Alt-click, pins edit/delete, Escape", as
 
   // Re-injection reuses the instance.
   await page.addScriptTag({ path: contentScript });
-  assert.equal(await page.evaluate(() => document.querySelectorAll("web-issuer-overlay").length), 1);
+  assert.equal(await page.evaluate(() => document.querySelectorAll("wish-overlay").length), 1);
   await page.close();
 });
 
@@ -219,7 +219,7 @@ test("progress pill follows request updates; ready offers the preview", async ()
   assert.equal(await ui(page, ".seg.on").count(), 1);
 
   await page.evaluate((r) => window.__push({ request: { ...r, state: "running", runUrl: "https://github.com/x/actions/runs/1" } }), req);
-  await page.waitForFunction(() => document.querySelector("web-issuer-overlay").shadowRoot.querySelectorAll(".seg.on").length === 3);
+  await page.waitForFunction(() => document.querySelector("wish-overlay").shadowRoot.querySelectorAll(".seg.on").length === 3);
   assert.match(await ui(page, ".req").innerText(), /Applying changes/);
 
   await page.evaluate(

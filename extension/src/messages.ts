@@ -1,4 +1,4 @@
-import type { Annotation, RepoInfo, RequestView } from "@web-issuer/shared";
+import type { Annotation, RepoInfo, RequestView } from "@wish/shared";
 import type { Draft } from "./drafts";
 import type { SendMode, Support } from "./page";
 

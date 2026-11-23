@@ -1,4 +1,4 @@
-import { isTerminalState, type RequestView } from "@web-issuer/shared";
+import { isTerminalState, type RequestView } from "@wish/shared";
 import { KEYS, type KeyValueStore } from "./storage";
 
 export type RequestMap = Record<string, RequestView>;

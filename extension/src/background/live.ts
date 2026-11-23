@@ -1,5 +1,5 @@
-import type { LiveMessage, RequestView } from "@web-issuer/shared";
-import { isTerminalState } from "@web-issuer/shared";
+import type { LiveMessage, RequestView } from "@wish/shared";
+import { isTerminalState } from "@wish/shared";
 import { api, ApiError, liveUrl } from "./api";
 
 const POLL_MS = 10_000;

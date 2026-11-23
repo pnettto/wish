@@ -1,4 +1,4 @@
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { h, render } from "preact";
 import { describe, expect, it } from "vitest";
 import { RequestRow } from "../src/content/app/Dock";

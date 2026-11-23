@@ -1,8 +1,8 @@
-import { MERGED_STATES, type RequestView } from "@web-issuer/shared";
+import { MERGED_STATES, type RequestView } from "@wish/shared";
 
 export type Support = { ok: true } | { ok: false; reason: string };
 
-/** Whether web-issuer can run on a page, with a human reason if not. */
+/** Whether Wish can run on a page, with a human reason if not. */
 export function pageSupport(url: string): Support {
   let u: URL;
   try {

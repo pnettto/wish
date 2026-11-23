@@ -1,4 +1,4 @@
-import type { RepoInfo, RequestView } from "@web-issuer/shared";
+import type { RepoInfo, RequestView } from "@wish/shared";
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import {
@@ -45,12 +45,12 @@ function Grant({ pattern, reason }: { pattern: string; reason: string }) {
   return (
     <main class="page grant">
       <h1>
-        {reason === "preview" ? "Allow preview sites" : "Keep web-issuer on"}
+        {reason === "preview" ? "Allow preview sites" : "Keep Wish on"}
       </h1>
       <p class="muted">
         {reason === "preview"
-          ? `web-issuer needs access to ${host} to show the preview banner and let you refine and merge from the preview.`
-          : `web-issuer needs access to ${host} to start automatically there after reloads and navigation.`}
+          ? `Wish needs access to ${host} to show the preview banner and let you refine and merge from the preview.`
+          : `Wish needs access to ${host} to start automatically there after reloads and navigation.`}
       </p>
       <div class="row">
         <button
@@ -78,15 +78,15 @@ function Grant({ pattern, reason }: { pattern: string; reason: string }) {
 const STEP_TEXT: Record<StepId, { title: string; body: string }> = {
   connect: {
     title: "Connect GitHub",
-    body: "Sign in so web-issuer can file issues in your repositories.",
+    body: "Sign in so Wish can file issues in your repositories.",
   },
   previews: {
     title: "Allow preview sites",
-    body: "Lets web-issuer show the preview banner and let you refine and merge from previews. You can do this later.",
+    body: "Lets Wish show the preview banner and let you refine and merge from previews. You can do this later.",
   },
   try: {
     title: "Try it on a page",
-    body: "On any website, click the web-issuer toolbar icon or press ⌥⇧F, then click something to comment on it.",
+    body: "On any website, click the Wish toolbar icon or press ⌥⇧F, then click something to comment on it.",
   },
 };
 
@@ -286,7 +286,7 @@ function Settings() {
   return (
     <main class="page">
       <header>
-        <h1>web-issuer</h1>
+        <h1>Wish</h1>
         <p class="muted">
           Point at what should change on a page and turn it into one GitHub
           issue.
@@ -358,7 +358,7 @@ function Settings() {
       <section aria-labelledby="h-previews">
         <h2 id="h-previews">Preview sites</h2>
         <p class="muted small">
-          Access to <code>{PREVIEW_PATTERN}</code> lets web-issuer show the
+          Access to <code>{PREVIEW_PATTERN}</code> lets Wish show the
           preview banner, refine and merge from the preview.
         </p>
         {previews ? (

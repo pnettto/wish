@@ -1,4 +1,4 @@
-# web-issuer: page feedback → GitHub issues (Chrome extension + Cloudflare backend)
+# Wish (formerly web-issuer): page feedback → GitHub issues (Chrome extension + Cloudflare backend)
 
 > **UI superseded:** This document describes the original side-panel design. The extension now uses
 > **in-page controls** (floating dock + preview banner). See **[docs/UX-PLAN.md](docs/UX-PLAN.md)**
@@ -19,7 +19,7 @@ This document is the full handover. Read §0 first; it overrides anything else.
 
 ### 0.1 Ground rules
 
-- **Only touch this repository** (`web-issuer`, this folder). Do not modify, push to, open PRs on, or change settings of any other repo, including `pnettto/hawk`.
+- **Only touch this repository** (this folder). Do not modify, push to, open PRs on, or change settings of any other repo, including `pnettto/hawk`.
 - **Do not create issues, comments, or labels on `pnettto/hawk`** unless the owner explicitly says to in the current conversation (see "Pause points"). All development testing uses fixtures and local replays.
 - **Git:** `git init` locally is fine. **Never commit or push** unless the owner explicitly asks. A request to commit is not permission to push.
 - **Cloudflare:** creating resources (D1 database, Worker deploy, custom domain, secrets) changes the owner's account. **Ask before the first `wrangler deploy` / `wrangler d1 create`.** Local `wrangler dev` is always fine.

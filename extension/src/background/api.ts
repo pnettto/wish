@@ -1,4 +1,4 @@
-import type { CreateFollowupRequest, CreateIssueRequest, ReposResponse, RequestView } from "@web-issuer/shared";
+import type { CreateFollowupRequest, CreateIssueRequest, ReposResponse, RequestView } from "@wish/shared";
 import { API_BASE } from "../config";
 import { chromeStore, KEYS } from "../storage";
 
@@ -59,7 +59,7 @@ export async function connectGitHub(): Promise<string> {
   if (!redirect) throw new Error("Sign-in was cancelled.");
   const fragment = new URLSearchParams(new URL(redirect).hash.slice(1));
   const error = fragment.get("error");
-  if (error === "forbidden") throw new Error("This GitHub account isn't allowed to use web-issuer.");
+  if (error === "forbidden") throw new Error("This GitHub account isn't allowed to use Wish.");
   if (error) throw new Error("GitHub sign-in failed. Try again.");
   const session = fragment.get("session");
   if (!session) throw new Error("GitHub sign-in failed. Try again.");

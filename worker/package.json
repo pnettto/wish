@@ -1,5 +1,5 @@
 {
-  "name": "@web-issuer/worker",
+  "name": "@wish/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "db:seed:local": "wrangler d1 execute web-issuer --local --file test/seed.sql"
   },
   "dependencies": {
-    "@web-issuer/shared": "*"
+    "@wish/shared": "*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251123.0",

@@ -1,4 +1,4 @@
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { describe, expect, it } from "vitest";
 import { buildSnapshot, defaultRepo, hasUi, watchedIds, type SnapshotInput } from "../src/background/state";
 

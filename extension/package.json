@@ -1,5 +1,5 @@
 {
-  "name": "@web-issuer/extension",
+  "name": "@wish/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "test:e2e": "node --test test/e2e/*.test.mjs"
   },
   "dependencies": {
-    "@web-issuer/shared": "*",
+    "@wish/shared": "*",
     "preact": "^10.27.0"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import type { RequestView } from "@web-issuer/shared";
+import type { RequestView } from "@wish/shared";
 import { describe, expect, it } from "vitest";
 import { memoryStore } from "../src/storage";
 import { activeRequests, loadRequests, progressOf, saveRequest, summarize } from "../src/tracking";

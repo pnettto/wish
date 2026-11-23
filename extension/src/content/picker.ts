@@ -6,7 +6,7 @@ export interface PickerEvents {
   onHover(el: Element | null): void;
   /** The user picked an element to comment on. */
   onPick(el: Element): void;
-  /** Escape pressed on the page (not inside web-issuer's UI). */
+  /** Escape pressed on the page (not inside Wish's UI). */
   onEscape(): void;
   /** ⌘/Ctrl+Enter on the page. */
   onSendShortcut(): void;

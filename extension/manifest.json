@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "web-issuer",
+  "name": "Wish",
   "description": "Point at what should change on a page and file one GitHub issue.",
   "version": "0.1.0",
   "minimum_chrome_version": "116",
@@ -11,7 +11,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "web-issuer: add feedback (⌥⇧F)",
+    "default_title": "Wish: make a wish (⌥⇧F)",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

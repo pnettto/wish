@@ -1,4 +1,4 @@
-import type { LiveMessage, ReposResponse } from "@web-issuer/shared";
+import type { LiveMessage, ReposResponse } from "@wish/shared";
 import { accessToken, bearerToken, handleAuthCallback, handleAuthStart, handleLogout, requireSession } from "./auth";
 import type { Env } from "./env";
 import { isTracked } from "./env";

@@ -12,7 +12,7 @@ import {
   type CreateIssueRequest,
   type RequestState,
   type RequestView,
-} from "@web-issuer/shared";
+} from "@wish/shared";
 import { accessToken, type SessionRow } from "./auth";
 import type { Env } from "./env";
 import { isTracked } from "./env";

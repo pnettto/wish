@@ -1,4 +1,4 @@
-import type { Annotation } from "@web-issuer/shared";
+import type { Annotation } from "@wish/shared";
 import type { CapturedAnnotation } from "./messages";
 import { KEYS, type KeyValueStore } from "./storage";
 
