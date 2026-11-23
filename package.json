@@ -1,0 +1,30 @@
+{
+  "name": "web-issuer",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "shared",
+    "worker",
+    "extension"
+  ],
+  "scripts": {
+    "build": "npm run build:ext && npm run build -w worker",
+    "build:ext": "npm run build -w extension",
+    "test": "vitest run",
+    "test:e2e": "npm run build:ext && npm run test:e2e -w extension",
+    "typecheck": "tsc -p shared && tsc -p worker && tsc -p extension",
+    "dev:worker": "npm run dev -w worker",
+    "db:migrate:local": "npm run db:migrate:local -w worker",
+    "db:seed:local": "npm run db:seed:local -w worker",
+    "replay": "node scripts/replay.mjs",
+    "extension-id": "node scripts/extension-id.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

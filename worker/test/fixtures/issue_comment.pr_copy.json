@@ -1,0 +1,38 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 143,
+    "title": "pi: Improve the pricing page",
+    "html_url": "https://github.com/pnettto/hawk/pull/143",
+    "state": "open",
+    "user": {
+      "login": "pnettto",
+      "type": "User"
+    },
+    "pull_request": {
+      "url": "https://api.github.com/repos/pnettto/hawk/pulls/143",
+      "html_url": "https://github.com/pnettto/hawk/pull/143"
+    }
+  },
+  "comment": {
+    "id": 1,
+    "body": "**pi:** tests and type-check pass.\n\nPreview: https://hawk-pi-issue-142.example.workers.dev\nRun: https://github.com/pnettto/hawk/actions/runs/1234567890\n\nMade the upgrade button secondary and added a tooltip explaining usage limits.\n",
+    "user": {
+      "login": "github-actions[bot]",
+      "type": "Bot"
+    },
+    "created_at": "2026-11-23T10:05:00Z",
+    "html_url": "https://github.com/pnettto/hawk/issues/142#issuecomment-1"
+  },
+  "repository": {
+    "id": 1,
+    "name": "hawk",
+    "full_name": "pnettto/hawk",
+    "private": false,
+    "html_url": "https://github.com/pnettto/hawk"
+  },
+  "sender": {
+    "login": "github-actions[bot]",
+    "type": "Bot"
+  }
+}
