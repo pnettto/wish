@@ -12,7 +12,7 @@
     "GITHUB_APP_ID": "",
     "ALLOWED_LOGIN": "pnettto",
     // From `npm run extension-id` (README).
-    "EXTENSION_ID": "",
+    "EXTENSION_ID": "ndghjkhgmanjhlfhahcbbmpfofdmldbc",
     "TRACKED_REPOS": "pnettto/hawk",
     "PUBLIC_URL": "https://issuer.pnetto.store"
   },

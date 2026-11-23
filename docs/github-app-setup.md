@@ -57,7 +57,7 @@ npx wrangler secret put GITHUB_WEBHOOK_SECRET  # from step 1
 npx wrangler secret put TOKEN_ENC_KEY          # openssl rand -base64 32
 ```
 
-Put `GITHUB_CLIENT_ID` and `GITHUB_APP_ID` in `wrangler.jsonc` `vars` (they aren't secret), alongside `ALLOWED_LOGIN=pnettto`, `TRACKED_REPOS=pnettto/hawk`, and `EXTENSION_ID` (see the README).
+Put `GITHUB_CLIENT_ID` and `GITHUB_APP_ID` in `wrangler.jsonc` `vars` (they aren't secret). `ALLOWED_LOGIN=pnettto`, `TRACKED_REPOS=pnettto/hawk` and `EXTENSION_ID=ndghjkhgmanjhlfhahcbbmpfofdmldbc` (see the README) are already set there. Redeploy (`npx wrangler deploy`) after changing vars.
 
 For local development, put the same keys in `worker/.dev.vars` (gitignored).
 
