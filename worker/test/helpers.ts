@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { encrypt, hmacSha256Hex, randomToken, sha256Hex } from "../src/crypto";
 import type { Env } from "../src/env";
 import type { RequestRow } from "../src/requests";
 
-const MIGRATION = fileURLToPath(new URL("../migrations/0001_init.sql", import.meta.url));
+const MIGRATIONS = fileURLToPath(new URL("../migrations/", import.meta.url));
 
 /** Minimal D1 implementation over node:sqlite, enough for the Worker's queries. */
 class FakeStatement {
@@ -32,7 +32,9 @@ class FakeStatement {
 
 export function fakeD1(): { d1: D1Database; db: DatabaseSync } {
   const db = new DatabaseSync(":memory:");
-  db.exec(readFileSync(MIGRATION, "utf8"));
+  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
+    db.exec(readFileSync(`${MIGRATIONS}/${file}`, "utf8"));
+  }
   const d1 = { prepare: (sql: string) => new FakeStatement(db, sql) } as unknown as D1Database;
   return { d1, db };
 }
@@ -127,6 +129,11 @@ export async function seedRequest(env: Env, overrides: Partial<RequestRow> = {})
     message: null,
     created_at: ISSUE_CREATED_AT,
     updated_at: ISSUE_CREATED_AT,
+    report_at: null,
+    merge_sha: null,
+    merged_at: null,
+    deploy_run_id: null,
+    deploy_run_url: null,
     ...overrides,
   };
   const keys = Object.keys(row);

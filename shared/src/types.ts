@@ -8,7 +8,15 @@ export type RequestState =
   | "checks_failed"
   | "no_changes"
   | "failed"
-  | "untracked";
+  | "untracked"
+  /** PR merged; production deploy pending or running. */
+  | "integrating"
+  /** Production deploy succeeded. */
+  | "live"
+  /** PR merged but the production deploy failed. */
+  | "deploy_failed"
+  /** PR merged and no production deploy was triggered (e.g. docs-only). */
+  | "merged";
 
 export const REQUEST_STATES: readonly RequestState[] = [
   "creating",
@@ -20,19 +28,35 @@ export const REQUEST_STATES: readonly RequestState[] = [
   "no_changes",
   "failed",
   "untracked",
+  "integrating",
+  "live",
+  "deploy_failed",
+  "merged",
 ];
 
 /** Outcomes reported by the `**pi:**` comment. */
 export type ReportOutcome = "succeeded" | "checks_failed" | "no_changes" | "failed";
 
-/** States after which nothing else is tracked. */
+/**
+ * States after which nothing else is tracked automatically. `succeeded` and
+ * `checks_failed` can still move on to `integrating` when the user merges.
+ */
 export const TERMINAL_STATES: readonly RequestState[] = [
   "succeeded",
   "checks_failed",
   "no_changes",
   "failed",
   "untracked",
+  "live",
+  "deploy_failed",
+  "merged",
 ];
+
+/** States from which the PR can be integrated (merged). */
+export const INTEGRATABLE_STATES: readonly RequestState[] = ["succeeded", "checks_failed"];
+
+/** States after the PR was merged. */
+export const MERGED_STATES: readonly RequestState[] = ["integrating", "live", "deploy_failed", "merged"];
 
 export function isTerminalState(state: RequestState): boolean {
   return TERMINAL_STATES.includes(state);
@@ -102,6 +126,10 @@ export interface RequestView {
   runUrl: string | null;
   prUrl: string | null;
   previewUrl: string | null;
+  /** PR number parsed from prUrl. */
+  prNumber: number | null;
+  /** Production deploy run, once the PR is merged. */
+  deployRunUrl: string | null;
   message: string | null;
   /** Automation hasn't started 10 minutes after the issue was created. */
   stalled: boolean;

@@ -4,10 +4,11 @@ import type { Env } from "./env";
 import { isTracked } from "./env";
 import { GitHubError, listInstalledRepos } from "./github";
 import { corsHeaders, errorResponse, HttpError, json, withHeaders } from "./http";
-import { handleCreateIssue, handleGetRequest, loadOwnedRequest, toView } from "./requests";
+import { handleCreateIssue, handleGetRequest, handleIntegrate, loadOwnedRequest, toView } from "./requests";
 import { handleWebhook } from "./webhooks";
 
 const REQUEST_PATH = /^\/requests\/([0-9a-f-]{36})(\/live)?$/;
+const INTEGRATE_PATH = /^\/requests\/([0-9a-f-]{36})\/integrate$/;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const cors = corsHeaders(env, request);
@@ -55,6 +56,12 @@ async function route(request: Request, env: Env): Promise<Response> {
       throw new HttpError(400, "invalid_request", "JSON body required");
     }
     return json(await handleCreateIssue(env, session, body));
+  }
+
+  const integrate = INTEGRATE_PATH.exec(pathname);
+  if (method === "POST" && integrate) {
+    const session = await requireSession(env, bearerToken(request));
+    return json(await handleIntegrate(env, session, integrate[1]!));
   }
 
   const match = REQUEST_PATH.exec(pathname);

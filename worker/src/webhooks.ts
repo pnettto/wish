@@ -1,18 +1,23 @@
-import { isTerminalState, parsePiReport, type RequestState } from "@web-issuer/shared";
+import { parsePiReport, type RequestState } from "@web-issuer/shared";
 import { verifyGitHubSignature } from "./crypto";
 import type { Env } from "./env";
 import { isTracked } from "./env";
 import {
+  applyDeployRun,
+  applyReport,
+  DEPLOY_WORKFLOW,
   findByIssue,
+  findByMergeSha,
   findByRunId,
+  isAwaitingReport,
   matchRun,
+  PI_WORKFLOW,
   pendingRequests,
+  REPORT_AUTHOR,
   scheduleFailure,
   updateRequest,
 } from "./requests";
 
-const REPORT_AUTHOR = "github-actions[bot]";
-const WORKFLOW_NAME = "pi";
 const FAILED_CONCLUSIONS = new Set(["failure", "cancelled", "timed_out"]);
 
 interface Repo {
@@ -38,6 +43,8 @@ interface WorkflowRunPayload {
     display_title: string;
     html_url: string;
     created_at: string;
+    head_branch: string | null;
+    head_sha: string;
     actor: { login: string } | null;
   };
 }
@@ -92,27 +99,13 @@ async function onIssueComment(env: Env, p: IssueCommentPayload): Promise<void> {
   if (!report) return;
 
   const row = await findByIssue(env, p.repository.full_name, p.issue.number);
-  if (!row || row.dry_run || isTerminalState(row.state)) return;
-  const commentAt = Date.parse(p.comment.created_at);
-  if (row.issue_created_at !== null && !Number.isNaN(commentAt) && commentAt < row.issue_created_at) return;
-
-  const message =
-    report.outcome === "failed" && report.message !== "the run failed."
-      ? report.message
-      : report.summary ?? (report.previewFailed ? "Preview deploy failed." : null);
-  await updateRequest(env, row, {
-    state: report.outcome,
-    pr_url: report.prUrl ?? row.pr_url,
-    preview_url: report.previewUrl,
-    run_url: report.runUrl ?? row.run_url,
-    run_id: report.runId ?? row.run_id,
-    message,
-  });
+  if (!row) return;
+  await applyReport(env, row, report, Date.parse(p.comment.created_at));
 }
 
 function isOurRun(env: Env, run: WorkflowRunPayload["workflow_run"]): boolean {
   return (
-    run.name === WORKFLOW_NAME &&
+    run.name === PI_WORKFLOW &&
     run.event === "issues" &&
     run.actor?.login.toLowerCase() === env.ALLOWED_LOGIN.toLowerCase()
   );
@@ -120,6 +113,12 @@ function isOurRun(env: Env, run: WorkflowRunPayload["workflow_run"]): boolean {
 
 async function onWorkflowRun(env: Env, p: WorkflowRunPayload): Promise<void> {
   const run = p.workflow_run;
+  if (run.name === DEPLOY_WORKFLOW && run.event === "push") {
+    // Production deploy after an Integrate: matched by the merge commit.
+    const merged = await findByMergeSha(env, p.repository.full_name, run.head_sha);
+    if (merged) await applyDeployRun(env, merged, run);
+    return;
+  }
   if (!isOurRun(env, run)) return;
   const repo = p.repository.full_name;
 
@@ -129,7 +128,7 @@ async function onWorkflowRun(env: Env, p: WorkflowRunPayload): Promise<void> {
     row = matchRun(pending, { id: run.id, createdAt: Date.parse(run.created_at), displayTitle: run.display_title });
     if (!row) return;
   }
-  if (isTerminalState(row.state)) return;
+  if (!isAwaitingReport(row)) return;
 
   const state: RequestState = row.state === "created" ? "started" : row.state;
   row = await updateRequest(env, row, { state, run_id: run.id, run_url: run.html_url });
@@ -142,9 +141,9 @@ async function onWorkflowRun(env: Env, p: WorkflowRunPayload): Promise<void> {
 
 async function onWorkflowJob(env: Env, p: WorkflowJobPayload): Promise<void> {
   const job = p.workflow_job;
-  if (job.workflow_name !== WORKFLOW_NAME) return;
+  if (job.workflow_name !== PI_WORKFLOW) return;
   const row = await findByRunId(env, p.repository.full_name, job.run_id);
-  if (!row || isTerminalState(row.state)) return;
+  if (!row || !isAwaitingReport(row)) return;
 
   if (job.conclusion === "skipped") {
     // The pi job is skipped for runs that aren't /pi requests: not ours.

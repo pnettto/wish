@@ -1,4 +1,11 @@
-import { isTerminalState, type Annotation, type RepoInfo, type RequestView } from "@web-issuer/shared";
+import {
+  INTEGRATABLE_STATES,
+  isTerminalState,
+  MERGED_STATES,
+  type Annotation,
+  type RepoInfo,
+  type RequestView,
+} from "@web-issuer/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ContentMessage, PanelMessage, PinSpec } from "../messages";
 import { chromeStore, KEYS } from "../storage";
@@ -136,6 +143,7 @@ export function App() {
       {tracked && tab ? (
         <Track
           session={session}
+          tabId={tab.id}
           request={tracked}
           onUnauthorized={signOut}
           onDone={async () => {
@@ -650,6 +658,8 @@ function Review(props: {
 // ---------------------------------------------------------------------------
 
 const POLL_MS = 10_000;
+/** Poll even with the socket open: the server-side safety net runs on GET. */
+const POLL_WITH_SOCKET_MS = 30_000;
 
 function useLiveRequest(session: string, request: RequestView, onUnauthorized: () => void) {
   const done = isTerminalState(request.state);
@@ -659,11 +669,14 @@ function useLiveRequest(session: string, request: RequestView, onUnauthorized: (
     let closed = false;
     let retry = 0;
     let reconnectTimer: number | undefined;
+    let lastPoll = 0;
 
     const store = (view: RequestView) => void saveRequest(chromeStore, view);
 
     const poll = async () => {
-      if (socket?.readyState === WebSocket.OPEN) return;
+      const now = Date.now();
+      if (socket?.readyState === WebSocket.OPEN && now - lastPoll < POLL_WITH_SOCKET_MS) return;
+      lastPoll = now;
       try {
         store(await api.request(session, request.id));
       } catch (err) {
@@ -709,13 +722,38 @@ function useLiveRequest(session: string, request: RequestView, onUnauthorized: (
   }, [session, request.id, done, onUnauthorized]);
 }
 
-function Track(props: { session: string; request: RequestView; onDone(): void; onUnauthorized(): void }) {
+function Track(props: { session: string; tabId: number; request: RequestView; onDone(): void; onUnauthorized(): void }) {
   const r = props.request;
   useLiveRequest(props.session, r, props.onUnauthorized);
   const summary = useMemo(() => summarize(r), [r]);
   const finished = isTerminalState(r.state);
+  const [confirming, setConfirming] = useState(false);
+  const [integrating, setIntegrating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
-  const primaryPreview = (r.state === "succeeded" || r.state === "checks_failed") && r.previewUrl;
+  const isMerged = MERGED_STATES.includes(r.state);
+  const canIntegrate = INTEGRATABLE_STATES.includes(r.state) && !!r.prUrl && !r.dryRun;
+  const preview = !isMerged && (r.state === "succeeded" || r.state === "checks_failed") ? r.previewUrl : null;
+  const live = r.state === "live";
+
+  const integrate = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setIntegrating(true);
+    setError(null);
+    try {
+      await saveRequest(chromeStore, await api.integrate(props.session, r.id));
+      setConfirming(false);
+    } catch (err) {
+      if (err instanceof ApiError && err.unauthorized) props.onUnauthorized();
+      else setError(errorText(err));
+    } finally {
+      inFlight.current = false;
+      setIntegrating(false);
+    }
+  };
+
   return (
     <section class="track" aria-live="polite">
       <h1 class="title">{r.title}</h1>
@@ -732,17 +770,66 @@ function Track(props: { session: string; request: RequestView; onDone(): void; o
         ))}
         {summary.headline && <li class={`step current ${summary.tone}`}>{summary.headline}</li>}
       </ul>
-      {r.message && r.state !== "succeeded" && <p class="small">{r.message}</p>}
+      {r.message && r.state !== "succeeded" && r.state !== "merged" && <p class="small">{r.message}</p>}
       {r.state === "succeeded" && r.message && <p class="muted small">{r.message}</p>}
+
+      {confirming ? (
+        <div class="confirm" role="alertdialog" aria-label="Integrate changes">
+          <p class="small">
+            This squash-merges {r.prNumber ? `PR #${r.prNumber}` : "the PR"} into the default branch and deploys it to production.
+          </p>
+          {r.state === "checks_failed" && (
+            <p class="small warning-text">Tests or type-check are failing on this PR. Merging may break production.</p>
+          )}
+          {error && (
+            <p class="error" role="alert">
+              {error}
+            </p>
+          )}
+          <div class="row">
+            <button type="button" onClick={() => setConfirming(false)} disabled={integrating}>
+              Cancel
+            </button>
+            <button type="button" class={r.state === "checks_failed" ? "danger" : "primary"} onClick={integrate} disabled={integrating}>
+              {integrating ? "Merging…" : "Merge and deploy"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div class="links">
+          {live && (
+            <button type="button" class="primary" onClick={() => void chrome.tabs.reload(props.tabId)}>
+              Reload page
+            </button>
+          )}
+          {preview && (
+            <a class="button primary" href={preview} target="_blank" rel="noreferrer">
+              Open preview
+            </a>
+          )}
+          {r.prUrl && (
+            <a class="button" href={r.prUrl} target="_blank" rel="noreferrer">
+              View PR
+            </a>
+          )}
+          {canIntegrate && (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setConfirming(true);
+              }}
+            >
+              Integrate changes
+            </button>
+          )}
+        </div>
+      )}
+
       <div class="links">
-        {primaryPreview && (
-          <a class="button primary" href={r.previewUrl!} target="_blank" rel="noreferrer">
-            Open preview
-          </a>
-        )}
-        {r.prUrl && (
-          <a class="button" href={r.prUrl} target="_blank" rel="noreferrer">
-            View PR
+        {r.deployRunUrl && (
+          <a class="small" href={r.deployRunUrl} target="_blank" rel="noreferrer">
+            View deploy ↗
           </a>
         )}
         {r.runUrl ? (
@@ -757,7 +844,7 @@ function Track(props: { session: string; request: RequestView; onDone(): void; o
           )
         )}
       </div>
-      <button type="button" class={finished && !primaryPreview ? "primary" : ""} onClick={props.onDone}>
+      <button type="button" class={finished && !preview && !live && !canIntegrate ? "primary" : ""} onClick={props.onDone}>
         {finished ? "New feedback" : "Hide (keeps tracking)"}
       </button>
     </section>

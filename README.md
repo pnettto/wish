@@ -48,6 +48,8 @@ VITE_API_BASE=http://localhost:8787 npm run build:ext   # point at a local Worke
 
 Chrome → `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `extension/dist/`. Check that the ID shown is `ndghjkhgmanjhlfhahcbbmpfofdmldbc`. Pin the toolbar icon; clicking it opens the side panel.
 
+When a run succeeds, the panel offers **Open preview**, **View PR** and **Integrate changes**. Integrating asks for confirmation (with an extra warning if checks failed), squash-merges the PR, then follows the repo's `deploy` workflow until **Live in production**, with **Reload page**. The branch is kept.
+
 Usage: **Connect GitHub** → pick the repository → **Add feedback** (Chrome asks for access to the current site once) → click elements and write comments → **Esc** to stop → **Review** → **Create issue**. The **Dry run** toggle is on by default: dry-run issues have no `/pi`, so no automation starts. Turn it off when you want the real thing.
 
 ## Worker
@@ -101,9 +103,10 @@ The `pnetto.store` zone must be on the same Cloudflare account for the custom do
 - Issues are created with the GitHub App's **user** token, so they're authored by `pnettto` and pass the `github.actor == 'pnettto'` gate in hawk's `pi.yml`.
 - `workflow_run` (`pi`, event `issues`, created ≤ 2 min after the issue; title match breaks ties) → **started**; `workflow_job` in progress → **running**; a skipped `pi` job means "not ours" and unlinks the run.
 - The `**pi:**` report comment from `github-actions[bot]` on the issue (not the PR copy) sets the outcome: `succeeded`, `checks_failed`, `no_changes` or `failed`, with PR, preview and run links. Only the first report counts.
+- **Integrate changes** (`POST /requests/:id/integrate`) squash-merges the PR, pinned to its current head commit. It refuses if the PR got commits after the `**pi:**` report (i.e. not what the preview showed). It then tracks the `deploy` workflow run (`push`) whose `head_sha` is the merge commit: `integrating` → `live` or `deploy_failed`. If no deploy run appears within 5 minutes (e.g. docs-only changes), the request ends as `merged`.
 - A run that ends in `failure`/`cancelled`/`timed_out` without a report within 2 minutes is marked failed (Durable Object alarm).
-- Safety net: if nothing happened 3 minutes after creation, polling checks the 👀 reaction and recent runs through the API; after 10 minutes the panel says "Automation hasn't started" and links the Actions tab.
-- The panel listens on a WebSocket (`/requests/:id/live`) and polls every 10 s as a fallback. While the panel is closed, the service worker polls once a minute and sets a badge when done.
+- Safety net for missed webhooks: from 3 minutes after creation, polling looks for the `**pi:**` report comment on the issue, the matching run and the 👀 reaction through the API; after 10 minutes without a start the panel says "Automation hasn't started" and links the Actions tab. After a merge, polling also looks up the deploy run by commit.
+- The panel listens on a WebSocket (`/requests/:id/live`) and polls every 10 s without it (every 30 s with it, so the safety net still runs). While the panel is closed, the service worker polls once a minute and sets a badge when done.
 - Dry runs and repos outside `TRACKED_REPOS` are `untracked`: the issue is created, progress isn't followed.
 
 ## Privacy

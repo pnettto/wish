@@ -17,6 +17,8 @@ const view = (over: Partial<RequestView> = {}): RequestView => ({
   runUrl: null,
   prUrl: null,
   previewUrl: null,
+  prNumber: null,
+  deployRunUrl: null,
   message: null,
   stalled: false,
   actionsUrl: "https://github.com/pnettto/hawk/actions",
@@ -45,5 +47,12 @@ describe("tracking", () => {
     expect(summarize(view({ state: "untracked", dryRun: true })).headline).toBe("Tracking off (dry run)");
     expect(summarize(view({ state: "created", stalled: true })).tone).toBe("warning");
     expect(summarize(view({ state: "failed" })).tone).toBe("error");
+    expect(summarize(view({ state: "integrating", prNumber: 45 })).steps.at(-1)?.label).toBe("PR #45 merged");
+    expect(summarize(view({ state: "integrating" })).headline).toBe("Deploying to production…");
+    expect(summarize(view({ state: "live" })).headline).toBe("Live in production.");
+    expect(summarize(view({ state: "deploy_failed" })).tone).toBe("error");
+    expect(summarize(view({ state: "merged", message: "Merged. No production deploy was triggered." })).headline).toBe(
+      "Merged. No production deploy was triggered.",
+    );
   });
 });

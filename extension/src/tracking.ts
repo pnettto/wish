@@ -41,6 +41,8 @@ export interface StatusSummary {
 export function summarize(r: RequestView): StatusSummary {
   const created: Step = { label: "Issue created", done: true };
   const started: Step = { label: "Automation started", done: true };
+  const applied: Step = { label: "Changes applied", done: true };
+  const merged: Step = { label: r.prNumber ? `PR #${r.prNumber} merged` : "PR merged", done: true };
   switch (r.state) {
     case "creating":
       return { steps: [], headline: "Creating issue…", tone: "neutral" };
@@ -60,7 +62,7 @@ export function summarize(r: RequestView): StatusSummary {
       return { steps: [created, started], headline: "Applying changes…", tone: "neutral" };
     case "succeeded":
       return {
-        steps: [created, started, { label: "Changes applied", done: true }],
+        steps: [created, started, applied],
         headline: r.previewUrl ? "Changes are ready in a preview." : "Changes are ready in a pull request.",
         tone: "success",
       };
@@ -74,5 +76,17 @@ export function summarize(r: RequestView): StatusSummary {
       return { steps: [created, started], headline: "No code changes were made. The request may need more detail.", tone: "warning" };
     case "failed":
       return { steps: [created, started], headline: "The automation failed.", tone: "error" };
+    case "integrating":
+      return { steps: [created, started, applied, merged], headline: "Deploying to production…", tone: "neutral" };
+    case "live":
+      return {
+        steps: [created, started, applied, merged, { label: "Deployed to production", done: true }],
+        headline: "Live in production.",
+        tone: "success",
+      };
+    case "deploy_failed":
+      return { steps: [created, started, applied, merged], headline: "The production deploy failed.", tone: "error" };
+    case "merged":
+      return { steps: [created, started, applied, merged], headline: r.message ?? "Merged.", tone: "neutral" };
   }
 }

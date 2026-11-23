@@ -160,3 +160,60 @@ export async function listIssueRuns(token: string, repo: string, sinceIso: strin
   const data = await gh<{ workflow_runs: WorkflowRunSummary[] }>(token, "GET", `${repoPath(repo)}/actions/runs?${q}`);
   return data.workflow_runs;
 }
+
+export interface PullRequest {
+  number: number;
+  state: "open" | "closed";
+  merged: boolean;
+  merge_commit_sha: string | null;
+  mergeable: boolean | null;
+  title: string;
+  head: { sha: string; ref: string };
+}
+
+export function getPull(token: string, repo: string, number: number): Promise<PullRequest> {
+  return gh<PullRequest>(token, "GET", `${repoPath(repo)}/pulls/${number}`);
+}
+
+/** Committer date of a commit (unix ms). */
+export async function getCommitDate(token: string, repo: string, sha: string): Promise<number> {
+  const data = await gh<{ commit: { committer: { date: string } | null; author: { date: string } | null } }>(
+    token,
+    "GET",
+    `${repoPath(repo)}/commits/${encodeURIComponent(sha)}`,
+  );
+  return Date.parse(data.commit.committer?.date ?? data.commit.author?.date ?? "");
+}
+
+/** Squash-merge, pinned to `sha` so GitHub refuses if the branch moved. */
+export function squashMerge(
+  token: string,
+  repo: string,
+  number: number,
+  sha: string,
+  title: string,
+): Promise<{ merged: boolean; sha: string; message: string }> {
+  return gh(token, "PUT", `${repoPath(repo)}/pulls/${number}/merge`, {
+    merge_method: "squash",
+    sha,
+    commit_title: `${title} (#${number})`,
+  });
+}
+
+export interface IssueComment {
+  id: number;
+  body: string | null;
+  created_at: string;
+  user: { login: string } | null;
+}
+
+export function listIssueComments(token: string, repo: string, issue: number, sinceIso: string): Promise<IssueComment[]> {
+  const q = new URLSearchParams({ since: sinceIso, per_page: "100" });
+  return gh<IssueComment[]>(token, "GET", `${repoPath(repo)}/issues/${issue}/comments?${q}`);
+}
+
+export async function listPushRunsForSha(token: string, repo: string, sha: string): Promise<WorkflowRunSummary[]> {
+  const q = new URLSearchParams({ event: "push", head_sha: sha, per_page: "30" });
+  const data = await gh<{ workflow_runs: WorkflowRunSummary[] }>(token, "GET", `${repoPath(repo)}/actions/runs?${q}`);
+  return data.workflow_runs;
+}

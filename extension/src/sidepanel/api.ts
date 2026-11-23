@@ -36,6 +36,8 @@ export const api = {
   createIssue: (session: string, body: CreateIssueRequest) =>
     call<RequestView>(session, "/issues", { method: "POST", body: JSON.stringify(body) }),
   request: (session: string, id: string) => call<RequestView>(session, `/requests/${encodeURIComponent(id)}`),
+  integrate: (session: string, id: string) =>
+    call<RequestView>(session, `/requests/${encodeURIComponent(id)}/integrate`, { method: "POST" }),
   logout: (session: string) => call<void>(session, "/auth/logout", { method: "POST" }),
 };
 

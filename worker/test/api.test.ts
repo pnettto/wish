@@ -219,6 +219,8 @@ describe("GET /requests/:id", () => {
       expect(url.searchParams.get("created")).toBe(">=2026-11-23T09:59:50Z");
       return jsonRes({ workflow_runs: [] });
     };
+    routes["GET https://api.github.com/repos/pnettto/hawk/issues/142/comments"] = () => jsonRes([]);
+    routes["GET https://api.github.com/repos/pnettto/hawk/issues/9/comments"] = () => jsonRes([]);
     routes["GET https://api.github.com/repos/pnettto/hawk/issues/142/reactions"] = () => jsonRes([{ content: "eyes", user: { login: "github-actions[bot]" } }]);
     const res = (await (await api(`/requests/${row.id}`, { token })).json()) as RequestView;
     expect(res.state).toBe("started");

@@ -1,7 +1,11 @@
 import {
+  parsePiReport,
   formatIssueBody,
-  isTerminalState,
+  INTEGRATABLE_STATES,
+  MERGED_STATES,
+  prNumberFromUrl,
   REQUEST_STATES,
+  type PiReport,
   type Annotation,
   type CreateIssueRequest,
   type RequestState,
@@ -10,7 +14,18 @@ import {
 import { accessToken, type SessionRow } from "./auth";
 import type { Env } from "./env";
 import { isTracked } from "./env";
-import { createIssue, GitHubError, isValidRepo, issueHasEyesReaction, listIssueRuns } from "./github";
+import {
+  createIssue,
+  getCommitDate,
+  getPull,
+  GitHubError,
+  isValidRepo,
+  issueHasEyesReaction,
+  listIssueComments,
+  listIssueRuns,
+  listPushRunsForSha,
+  squashMerge,
+} from "./github";
 import { HttpError } from "./http";
 
 export const STALL_CHECK_AFTER_MS = 3 * 60 * 1000;
@@ -19,6 +34,23 @@ export const RUN_MATCH_WINDOW_MS = 2 * 60 * 1000;
 /** Allow a little clock skew between issue creation and run creation. */
 export const RUN_MATCH_SKEW_MS = 10 * 1000;
 export const FAILURE_GRACE_MS = 2 * 60 * 1000;
+/** After a merge, give up waiting for a production deploy run after this long. */
+export const NO_DEPLOY_AFTER_MS = 5 * 60 * 1000;
+/** Start reconciling a merge with the Actions API after this long. */
+export const DEPLOY_CHECK_AFTER_MS = 2 * 60 * 1000;
+/** Commits on the PR newer than the report (plus this skew) block integration. */
+export const PR_CHANGED_SKEW_MS = 60 * 1000;
+
+export const REPORT_AUTHOR = "github-actions[bot]";
+export const PI_WORKFLOW = "pi";
+export const DEPLOY_WORKFLOW = "deploy";
+
+/** States in which a `**pi:**` report is still expected. */
+const AWAITING_REPORT: readonly RequestState[] = ["created", "started", "running"];
+
+export function isAwaitingReport(row: RequestRow): boolean {
+  return !row.dry_run && AWAITING_REPORT.includes(row.state);
+}
 
 export interface RequestRow {
   id: string;
@@ -39,12 +71,30 @@ export interface RequestRow {
   message: string | null;
   created_at: number;
   updated_at: number;
+  report_at: number | null;
+  merge_sha: string | null;
+  merged_at: number | null;
+  deploy_run_id: number | null;
+  deploy_run_url: string | null;
 }
 
 export type RequestPatch = Partial<
   Pick<
     RequestRow,
-    "issue_number" | "issue_url" | "issue_created_at" | "state" | "run_id" | "run_url" | "pr_url" | "preview_url" | "message"
+    | "issue_number"
+    | "issue_url"
+    | "issue_created_at"
+    | "state"
+    | "run_id"
+    | "run_url"
+    | "pr_url"
+    | "preview_url"
+    | "message"
+    | "report_at"
+    | "merge_sha"
+    | "merged_at"
+    | "deploy_run_id"
+    | "deploy_run_url"
   >
 >;
 
@@ -68,6 +118,8 @@ export function toView(row: RequestRow, now = Date.now()): RequestView {
     runUrl: row.run_url,
     prUrl: row.pr_url,
     previewUrl: row.preview_url,
+    prNumber: prNumberFromUrl(row.pr_url),
+    deployRunUrl: row.deploy_run_url,
     message: stalled && !row.message ? "Automation hasn't started" : row.message,
     stalled,
     actionsUrl: `https://github.com/${row.repo}/actions`,
@@ -93,6 +145,12 @@ export function findByRunId(env: Env, repo: string, runId: number): Promise<Requ
 }
 
 /** Tracked requests still waiting for their run to be identified. */
+export function findByMergeSha(env: Env, repo: string, sha: string): Promise<RequestRow | null> {
+  return env.DB.prepare("SELECT * FROM requests WHERE repo = ? COLLATE NOCASE AND merge_sha = ?")
+    .bind(repo, sha)
+    .first<RequestRow>();
+}
+
 export async function pendingRequests(env: Env, repo: string): Promise<RequestRow[]> {
   const { results } = await env.DB.prepare(
     `SELECT * FROM requests WHERE repo = ? COLLATE NOCASE AND dry_run = 0 AND run_id IS NULL
@@ -160,7 +218,7 @@ export async function scheduleFailure(env: Env, failure: PendingFailure): Promis
 
 export async function applyPendingFailure(env: Env, failure: PendingFailure): Promise<void> {
   const row = await getRequest(env, failure.requestId);
-  if (!row || isTerminalState(row.state)) return;
+  if (!row || !isAwaitingReport(row)) return;
   await updateRequest(env, row, {
     state: "failed",
     run_id: failure.runId,
@@ -182,6 +240,55 @@ export async function updateRequest(env: Env, row: RequestRow, patch: RequestPat
   const next = { ...row, ...Object.fromEntries(entries), updated_at: now } as RequestRow;
   await broadcast(env, next);
   return next;
+}
+
+/**
+ * Apply a `**pi:**` report to a request. Only the first report posted after
+ * the issue was created counts.
+ */
+export async function applyReport(env: Env, row: RequestRow, report: PiReport, postedAt: number): Promise<RequestRow> {
+  if (row.dry_run || !AWAITING_REPORT.includes(row.state)) return row;
+  if (row.issue_created_at !== null && !Number.isNaN(postedAt) && postedAt < row.issue_created_at) return row;
+  const message =
+    report.outcome === "failed" && report.message !== "the run failed."
+      ? report.message
+      : (report.summary ?? (report.previewFailed ? "Preview deploy failed." : null));
+  return updateRequest(env, row, {
+    state: report.outcome,
+    pr_url: report.prUrl ?? row.pr_url,
+    preview_url: report.previewUrl,
+    run_url: report.runUrl ?? row.run_url,
+    run_id: report.runId ?? row.run_id,
+    report_at: Number.isNaN(postedAt) ? Date.now() : postedAt,
+    message,
+  });
+}
+
+export interface DeployRun {
+  id: number;
+  html_url: string;
+  status: string | null;
+  conclusion: string | null;
+}
+
+/** Track the production deploy run that followed a merge. */
+export async function applyDeployRun(env: Env, row: RequestRow, run: DeployRun): Promise<RequestRow> {
+  if (row.state !== "integrating") return row;
+  const link = { deploy_run_id: run.id, deploy_run_url: run.html_url };
+  if (run.status !== "completed") return updateRequest(env, row, link);
+  switch (run.conclusion) {
+    case "success":
+      return updateRequest(env, row, { ...link, state: "live", message: null });
+    case "skipped":
+    case "neutral":
+      return updateRequest(env, row, { ...link, state: "merged", message: "Merged. The production deploy was skipped." });
+    default:
+      return updateRequest(env, row, {
+        ...link,
+        state: "deploy_failed",
+        message: `Merged, but the production deploy ended: ${run.conclusion ?? "unknown"}.`,
+      });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -309,10 +416,10 @@ function existingOrConflict(row: RequestRow, session: SessionRow): RequestView {
 }
 
 // ---------------------------------------------------------------------------
-// GET /requests/:id (+ safety net)
+// GET /requests/:id (+ safety net for missed webhooks)
 
-const lastStallCheck = new Map<string, number>();
-const STALL_CHECK_INTERVAL_MS = 30 * 1000;
+const lastCheck = new Map<string, number>();
+const CHECK_INTERVAL_MS = 30 * 1000;
 
 export async function loadOwnedRequest(env: Env, session: SessionRow, id: string): Promise<RequestRow> {
   const row = await getRequest(env, id);
@@ -322,34 +429,59 @@ export async function loadOwnedRequest(env: Env, session: SessionRow, id: string
 
 export async function handleGetRequest(env: Env, session: SessionRow, id: string): Promise<RequestView> {
   let row = await loadOwnedRequest(env, session, id);
-  if (shouldCheckStall(row)) {
+  const check = safetyCheck(row);
+  if (check) {
     try {
-      row = await checkStalled(env, session, row);
+      row = await check(env, session, row);
     } catch (err) {
-      console.error("stall check failed", err);
+      console.error("safety check failed", err);
     }
   }
   return toView(row);
 }
 
-function shouldCheckStall(row: RequestRow): boolean {
-  if (row.state !== "created" || row.dry_run || row.issue_created_at === null || row.issue_number === null) return false;
-  const now = Date.now();
-  if (now - row.issue_created_at < STALL_CHECK_AFTER_MS) return false;
-  const last = lastStallCheck.get(row.id) ?? 0;
-  if (now - last < STALL_CHECK_INTERVAL_MS) return false;
-  lastStallCheck.set(row.id, now);
-  return true;
+/** Test hook: forget throttling state. */
+export function resetSafetyThrottle(): void {
+  lastCheck.clear();
 }
 
-/** Webhooks may have been missed: look for the 👀 reaction and a matching run. */
-async function checkStalled(env: Env, session: SessionRow, row: RequestRow): Promise<RequestRow> {
+type Check = (env: Env, session: SessionRow, row: RequestRow) => Promise<RequestRow>;
+
+function safetyCheck(row: RequestRow): Check | null {
+  const now = Date.now();
+  let check: Check | null = null;
+  if (!row.dry_run && AWAITING_REPORT.includes(row.state) && row.issue_created_at !== null && row.issue_number !== null) {
+    if (now - row.issue_created_at >= STALL_CHECK_AFTER_MS) check = checkAutomation;
+  } else if (row.state === "integrating" && row.merge_sha && row.merged_at !== null) {
+    if (now - row.merged_at >= DEPLOY_CHECK_AFTER_MS) check = checkDeploy;
+  }
+  if (!check) return null;
+  const last = lastCheck.get(row.id) ?? 0;
+  if (now - last < CHECK_INTERVAL_MS) return null;
+  lastCheck.set(row.id, now);
+  return check;
+}
+
+function isoSeconds(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/** Look for a missed report comment, then for a missed run start. */
+const checkAutomation: Check = async (env, session, row) => {
   const token = await accessToken(env, session);
-  const since = new Date((row.issue_created_at ?? 0) - RUN_MATCH_SKEW_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const runs = await listIssueRuns(token, row.repo, since);
+  const since = isoSeconds(row.issue_created_at ?? 0);
+  const comments = await listIssueComments(token, row.repo, row.issue_number!, since);
+  for (const c of comments) {
+    if (c.user?.login !== REPORT_AUTHOR) continue;
+    const report = parsePiReport(c.body ?? "");
+    if (report) return applyReport(env, row, report, Date.parse(c.created_at));
+  }
+  if (row.state !== "created") return row;
+
+  const runs = await listIssueRuns(token, row.repo, isoSeconds((row.issue_created_at ?? 0) - RUN_MATCH_SKEW_MS));
   const pending = await pendingRequests(env, row.repo);
   for (const run of runs) {
-    if (run.name !== "pi" || run.actor?.login.toLowerCase() !== env.ALLOWED_LOGIN.toLowerCase()) continue;
+    if (run.name !== PI_WORKFLOW || run.actor?.login.toLowerCase() !== env.ALLOWED_LOGIN.toLowerCase()) continue;
     const match = matchRun(pending, { id: run.id, createdAt: Date.parse(run.created_at), displayTitle: run.display_title });
     if (match?.id === row.id) {
       return updateRequest(env, row, { state: "started", run_id: run.id, run_url: run.html_url });
@@ -359,4 +491,64 @@ async function checkStalled(env: Env, session: SessionRow, row: RequestRow): Pro
     return updateRequest(env, row, { state: "started" });
   }
   return row;
+};
+
+/** Find the production deploy for a merge; give up if none appears. */
+const checkDeploy: Check = async (env, session, row) => {
+  const token = await accessToken(env, session);
+  const runs = await listPushRunsForSha(token, row.repo, row.merge_sha!);
+  const deploy = runs.find((r) => r.name === DEPLOY_WORKFLOW);
+  if (deploy) return applyDeployRun(env, row, deploy);
+  if (Date.now() - (row.merged_at ?? 0) >= NO_DEPLOY_AFTER_MS) {
+    return updateRequest(env, row, { state: "merged", message: "Merged. No production deploy was triggered." });
+  }
+  return row;
+};
+
+// ---------------------------------------------------------------------------
+// POST /requests/:id/integrate
+
+function prBelongsToRepo(prUrl: string, repo: string): boolean {
+  return prUrl.toLowerCase().startsWith(`https://github.com/${repo.toLowerCase()}/pull/`);
+}
+
+/** Squash-merge the request's PR so the repo's production deploy runs. */
+export async function handleIntegrate(env: Env, session: SessionRow, id: string): Promise<RequestView> {
+  const row = await loadOwnedRequest(env, session, id);
+  if (MERGED_STATES.includes(row.state)) return toView(row);
+  if (!INTEGRATABLE_STATES.includes(row.state)) throw new HttpError(409, "not_ready", "There are no changes to integrate yet.");
+  const prNumber = prNumberFromUrl(row.pr_url);
+  if (row.dry_run || !row.pr_url || !prNumber || !prBelongsToRepo(row.pr_url, row.repo)) {
+    throw new HttpError(409, "no_pr", "This request has no pull request to integrate.");
+  }
+
+  const token = await accessToken(env, session);
+  const pr = await getPull(token, row.repo, prNumber);
+  const merged = (sha: string | null) =>
+    updateRequest(env, row, { state: "integrating", merge_sha: sha, merged_at: Date.now(), message: null }).then((r) => toView(r));
+
+  if (pr.merged) return merged(pr.merge_commit_sha);
+  if (pr.state !== "open") throw new HttpError(409, "pr_closed", `PR #${prNumber} is closed.`);
+
+  // Don't ship commits that landed after the preview was built.
+  if (row.report_at !== null) {
+    const headDate = await getCommitDate(token, row.repo, pr.head.sha);
+    if (!Number.isNaN(headDate) && headDate > row.report_at + PR_CHANGED_SKEW_MS) {
+      throw new HttpError(409, "pr_changed", `PR #${prNumber} changed after the preview was built. Review it on GitHub first.`);
+    }
+  }
+
+  try {
+    const result = await squashMerge(token, row.repo, prNumber, pr.head.sha, pr.title);
+    return await merged(result.sha);
+  } catch (err) {
+    if (!(err instanceof GitHubError)) throw err;
+    if (err.status === 403 || err.status === 404) {
+      throw new HttpError(403, "missing_permission", "The GitHub App can't merge. Give it Contents and Pull requests: Read and write.");
+    }
+    if (err.status === 405 || err.status === 409 || err.status === 422) {
+      throw new HttpError(409, "merge_refused", `GitHub refused the merge: ${err.message}`);
+    }
+    throw err;
+  }
 }

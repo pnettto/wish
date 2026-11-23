@@ -80,3 +80,11 @@ export function parsePiReport(rawBody: string): PiReport | null {
     summary: extractSummary(rest),
   };
 }
+
+export function prNumberFromUrl(url: string | null): number | null {
+  if (!url) return null;
+  const match = /\/pull\/(\d+)(?:[/?#]|$)/.exec(url);
+  if (!match?.[1]) return null;
+  const n = Number(match[1]);
+  return Number.isSafeInteger(n) ? n : null;
+}

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isPiReport, parsePiReport, runIdFromUrl } from "../src/pi-report";
+import { isPiReport, parsePiReport, prNumberFromUrl, runIdFromUrl } from "../src/pi-report";
 
 const fixture = (name: string) =>
   readFileSync(fileURLToPath(new URL(`../../worker/test/fixtures/reports/${name}.md`, import.meta.url)), "utf8");
@@ -73,5 +73,14 @@ describe("runIdFromUrl", () => {
     expect(runIdFromUrl(`${RUN}/job/5`)).toBe(1234567890);
     expect(runIdFromUrl("https://example.com")).toBeNull();
     expect(runIdFromUrl(null)).toBeNull();
+  });
+});
+
+describe("prNumberFromUrl", () => {
+  it("extracts the PR number", () => {
+    expect(prNumberFromUrl("https://github.com/pnettto/hawk/pull/45")).toBe(45);
+    expect(prNumberFromUrl("https://github.com/pnettto/hawk/pull/45/files")).toBe(45);
+    expect(prNumberFromUrl("https://github.com/pnettto/hawk/pulls")).toBeNull();
+    expect(prNumberFromUrl(null)).toBeNull();
   });
 });

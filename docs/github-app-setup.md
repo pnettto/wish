@@ -27,13 +27,16 @@ Go to **GitHub → Settings → Developer settings → GitHub Apps → New GitHu
 | Permission | Access |
 |---|---|
 | Actions | Read-only |
+| Contents | Read and write (needed to merge with **Integrate changes**) |
 | Issues | Read and write |
 | Metadata | Read-only (mandatory) |
-| Pull requests | Read-only |
+| Pull requests | Read and write (needed to merge with **Integrate changes**) |
+
+If you change permissions after installing, accept them on the installation: <https://github.com/settings/installations> → **Configure** → **Review request** → **Accept new permissions**.
 
 **Account permissions:** none.
 
-**Subscribe to events:** ✅ Issue comment, ✅ Workflow job, ✅ Workflow run. These appear after the permissions above are set.
+**Subscribe to events:** ✅ Issue comment, ✅ Workflow job, ✅ Workflow run. These checkboxes only appear after the permissions above are set; without them no progress is tracked (Recent deliveries then only shows `ping` and `installation`).
 
 **Where can this GitHub App be installed?** Only on this account.
 

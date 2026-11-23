@@ -31,7 +31,7 @@ async function poll() {
       const view = (await res.json()) as RequestView;
       await saveRequest(chromeStore, view);
       if (isTerminalState(view.state) && !isTerminalState(req.state)) {
-        const ok = view.state === "succeeded";
+        const ok = view.state === "succeeded" || view.state === "live";
         await chrome.action.setBadgeBackgroundColor({ color: ok ? "#4c7a5a" : "#9a6b2f" });
         await chrome.action.setBadgeText({ text: ok ? "✓" : "!" });
       }
