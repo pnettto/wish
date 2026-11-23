@@ -31,15 +31,8 @@
 		{
 			"binding": "DB",
 			"database_name": "web-issuer",
-			// Replace with the id printed by `wrangler d1 create web-issuer`.
 			"database_id": "77433aae-2eed-4196-b939-88aefb1b6901",
 			"migrations_dir": "migrations"
-		},
-		{
-			"binding": "web_issuer",
-			"database_name": "web-issuer",
-			"database_id": "77433aae-2eed-4196-b939-88aefb1b6901",
-			"remote": true
 		}
 	],
 	"durable_objects": {
